@@ -1,0 +1,17 @@
+{
+  "name": "L'Appel — Équipe",
+  "short_name": "L'Appel",
+  "description": "Organisation de l'équipe da'wah — devoirs récurrents, tâches partagées et assiduité, en temps réel.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF7F0",
+  "theme_color": "#E0795F",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
