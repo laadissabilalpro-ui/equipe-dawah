@@ -116,6 +116,9 @@
   .arow{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid var(--line)}
   .atime{font-size:12.5px;font-weight:800;color:var(--muted);min-width:38px}
   .adot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+  .chip2{font-size:13px;font-weight:700;padding:7px 11px;border-radius:999px;background:var(--bg2);color:var(--muted)}
+  .chip2.on{background:var(--accent);color:#fff}
 
   .vid{display:flex;flex-direction:column;gap:8px}
   .tagrow{display:flex;gap:6px;flex-wrap:wrap}
@@ -214,7 +217,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"",
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1",
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
   ready:false, error:"", onbStep:"code", onbCode:"", onbNames:null
 };
@@ -279,9 +282,13 @@ async function bumpDuty(dutyId,delta){
   if(cur)cur.count=n; else state.logs.push({code:state.code,member:state.me,duty_id:dutyId,day:day,count:n}); render();
   await client().from("team_duty_log").upsert({code:state.code,member:state.me,duty_id:dutyId,day:day,count:n,updated_at:new Date().toISOString()},{onConflict:"code,member,duty_id,day"});
 }
-async function addTask(title,note,assignee,dd,dt){ if(!title.trim())return; await client().from("team_tasks").insert({code:state.code,title:title.trim(),note:(note||"").trim()||null,assignee:assignee||null,due_date:dd||null,due_time:(dt||"").trim()||null,created_by:state.me}); await refreshAll(); }
+async function addTask(title,note,asg,dd,dt){ if(!title.trim())return; asg=asg||[]; await client().from("team_tasks").insert({code:state.code,title:title.trim(),note:(note||"").trim()||null,assignee:asg[0]||null,assignees:asg,due_date:dd||null,due_time:(dt||"").trim()||null,created_by:state.me}); await refreshAll(); }
 async function taskUpdate(id,p){ p.updated_at=new Date().toISOString(); await client().from("team_tasks").update(p).eq("id",id); await refreshAll(); }
 async function taskDelete(id){ await client().from("team_tasks").delete().eq("id",id); await refreshAll(); }
+function taskAssignees(t){ var a=t.assignees; if(typeof a==="string"){try{a=JSON.parse(a);}catch(e){a=null;}} if(a&&a.length)return a; return t.assignee?[t.assignee]:[]; }
+function isMine(t){ return taskAssignees(t).indexOf(state.me)>=0; }
+async function joinTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).slice(); if(a.indexOf(state.me)<0)a.push(state.me); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
+async function leaveTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).filter(function(n){return n!==state.me;}); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
 async function addMember(name){ name=(name||"").trim(); if(!name)return; await client().from("team_members").upsert({code:state.code,name:name},{onConflict:"code,name",ignoreDuplicates:true}); await refreshAll(); }
 async function addDuty(label,cadence,target){ label=(label||"").trim(); if(!label)return; var s=state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0)+1; await client().from("team_duties").upsert({code:state.code,label:label,cadence:cadence,target:target||1,sort:s},{onConflict:"code,label",ignoreDuplicates:true}); await refreshAll(); }
 
@@ -390,7 +397,7 @@ function viewPoint(){
   var overN=state.tasks.filter(function(t){return t.due_date&&t.due_date<tdy&&!t.done;}).length;
   h+='<h2 class="sec">À faire aujourd\'hui'+(overN?' · <span style="color:var(--accent-d)">'+overN+' en retard</span>':'')+'</h2><div class="card">';
   if(!tdyT.length&&!overN) h+='<div class="muted small">Rien de daté aujourd\'hui.</div>';
-  tdyT.slice(0,5).forEach(function(t){ h+='<div class="row" style="padding:5px 0"><span class="atime" style="min-width:42px">'+(t.due_time||"·")+'</span><div class="grow"><b>'+esc(t.title)+'</b>'+(t.assignee?' <span class="tiny" style="color:'+avColor(t.assignee)+'">'+esc(t.assignee)+'</span>':'')+'</div><button class="check" data-action="done" data-id="'+t.id+'" style="width:26px;height:26px"></button></div>'; });
+  tdyT.slice(0,5).forEach(function(t){ h+='<div class="row" style="padding:5px 0"><span class="atime" style="min-width:42px">'+(t.due_time||"·")+'</span><div class="grow"><b>'+esc(t.title)+'</b>'+(taskAssignees(t).length?' <span class="tiny muted">'+taskAssignees(t).map(esc).join(", ")+'</span>':'')+'</div><button class="check" data-action="done" data-id="'+t.id+'" style="width:26px;height:26px"></button></div>'; });
   h+='<button class="btn ghost sm block" data-action="open-agenda" style="margin-top:8px">Ouvrir l\'agenda →</button></div>';
 
   // mes devoirs du jour (rapide)
@@ -533,19 +540,20 @@ function recitRow(r){
 function viewTasks(){
   if(!state.ready)return loading();
   var opts='<option value="">— à prendre —</option>'+state.members.map(function(m){return '<option value="'+esc(m.name)+'"'+(m.name===state.me?" selected":"")+'>'+esc(m.name)+'</option>';}).join("");
-  var h='<div class="card"><input id="t-title" class="field" placeholder="Nouvelle tâche (ex. monter la vidéo du vendredi)"><input id="t-note" class="field" placeholder="Note (optionnel)"><div class="row"><input id="t-date" class="field" style="margin:0" type="date"><input id="t-time" class="field" style="margin:0;width:44%" type="time"></div><label class="lab">Pour qui ?</label><select id="t-assignee" class="field">'+opts+'</select><button class="btn block" data-action="add-task">Ajouter la tâche</button></div>';
+  var h='<div class="card"><input id="t-title" class="field" placeholder="Nouvelle tâche (ex. monter la vidéo du vendredi)"><input id="t-note" class="field" placeholder="Note (optionnel)"><div class="row"><input id="t-date" class="field" style="margin:0" type="date"><input id="t-time" class="field" style="margin:0;width:44%" type="time"></div><label class="lab">Pour qui ? (plusieurs possibles)</label><div id="t-assignees" class="chips">'+state.members.map(function(m){return '<button class="chip2" data-action="pickassignee" data-name="'+esc(m.name)+'">'+esc(m.name)+'</button>';}).join("")+'</div><button class="btn block" data-action="add-task">Ajouter la tâche</button></div>';
   h+='<div class="seg" style="margin-bottom:8px"><button data-action="tasktab" data-t="board" class="'+(state.taskTab==="board"?"on":"")+'">📌 Tableau</button><button data-action="tasktab" data-t="agenda" class="'+(state.taskTab==="agenda"?"on":"")+'">📅 Agenda</button></div>';
   if(state.taskTab==="agenda") return h+viewAgenda();
-  var todo=state.tasks.filter(function(t){return !t.done&&!t.assignee;}), doing=state.tasks.filter(function(t){return !t.done&&t.assignee;}), done=state.tasks.filter(function(t){return t.done;});
-  h+=tsec("À prendre ("+todo.length+")",todo,"todo")+tsec("En cours ("+doing.length+")",doing,"doing")+tsec("Fait ("+done.length+")",done,"done");
+  var todo=state.tasks.filter(function(t){return !t.done&&taskAssignees(t).length===0;}), doing=state.tasks.filter(function(t){return !t.done&&taskAssignees(t).length>0;}), done=state.tasks.filter(function(t){return t.done;});
+  h+='<div class="row" style="margin:0 4px 8px"><div class="grow"></div><button class="btn ghost sm" data-action="togglehide">'+(state.hideDone?"👁 Afficher les faites":"🙈 Masquer les faites")+'</button></div>';
+  h+=tsec("À prendre ("+todo.length+")",todo,"todo")+tsec("En cours ("+doing.length+")",doing,"doing")+(state.hideDone?"":tsec("Fait ("+done.length+")",done,"done"));
   return h;
 }
 function viewAgenda(){
   var tdy=today(), scope=state.agendaScope, day=state.agendaDay||tdy;
-  function inScope(t){return scope==="team"||t.assignee===state.me;}
+  function inScope(t){return scope==="team"||isMine(t);}
   var dated=state.tasks.filter(function(t){return t.due_date&&inScope(t);});
   var over=dated.filter(function(t){return !t.done&&t.due_date<tdy;}).sort(function(a,b){return a.due_date<b.due_date?-1:1;});
-  var dayTasks=dated.filter(function(t){return t.due_date===day;}).sort(function(a,b){var x=a.due_time||"99:99",y=b.due_time||"99:99";return x<y?-1:x>y?1:0;});
+  var dayTasks=dated.filter(function(t){return t.due_date===day&&(!state.hideDone||!t.done);}).sort(function(a,b){var x=a.due_time||"99:99",y=b.due_time||"99:99";return x<y?-1:x>y?1:0;});
   var h='<div class="seg" style="margin-bottom:8px"><button data-action="agenda-scope" data-s="team" class="'+(scope==="team"?"on":"")+'">Équipe</button><button data-action="agenda-scope" data-s="me" class="'+(scope==="me"?"on":"")+'">Moi</button></div>';
   if(over.length){ h+='<h2 class="sec">⏰ En retard ('+over.length+')</h2>'; over.forEach(function(t){h+=agendaRow(t,true);}); }
   h+='<div class="weekstrip">'+week7().map(function(d){var sel=d===day,isT=d===tdy,n=dated.filter(function(t){return t.due_date===d&&!t.done;}).length;return '<button class="wday'+(sel?" sel":"")+(isT?" today":"")+'" data-action="agenda-day" data-d="'+d+'"><span class="wd">'+dowShort(d)+'</span><span class="wn">'+dayNum(d)+'</span>'+(n?'<span class="wdot">'+n+'</span>':'<span class="wdot empty"></span>')+'</button>';}).join("")+'</div>';
@@ -555,11 +563,11 @@ function viewAgenda(){
   return h;
 }
 function agendaRow(t,over){
-  var col=t.assignee?avColor(t.assignee):"var(--muted)";
+  var as=taskAssignees(t); var col=as.length?avColor(as[0]):"var(--muted)";
   return '<div class="arow"><span class="atime">'+(t.due_time||"·")+'</span>'+
     '<span class="adot" style="background:'+col+'"></span>'+
     '<div class="grow"><div class="ttl small'+(t.done?" done":"")+'">'+esc(t.title)+'</div>'+
-      (t.assignee?'<span class="tiny" style="color:'+col+';font-weight:700">'+esc(t.assignee)+'</span>':'<span class="tiny muted">à prendre</span>')+
+      (as.length?'<span class="tiny" style="font-weight:700">'+as.map(esc).join(", ")+'</span>':'<span class="tiny muted">à prendre</span>')+
       (over?' <span class="tiny" style="color:var(--accent-d)">· '+dayLabel(t.due_date)+'</span>':'')+'</div>'+
     (over?'<button class="copybtn" data-action="reschedule" data-id="'+t.id+'" data-to="'+today()+'">→ auj.</button>':'')+
     '<button class="check'+(t.done?" on":"")+'" data-action="'+(t.done?"reopen":"done")+'" data-id="'+t.id+'" style="width:28px;height:28px">'+(t.done?"✓":"")+'</button></div>';
@@ -569,9 +577,9 @@ function tsec(title,list,kind){
   if(!list.length)return h+'<p class="tiny muted" style="margin:0 4px 4px">—</p>';
   h+='<div class="grid">';
   list.forEach(function(t,i){
-    var col="var(--p"+((i%6)+1)+")", who=t.assignee?'<span class="who">'+esc(t.assignee)+(t.assignee===state.me?" · toi":"")+'</span>':"", acts="";
-    if(kind==="todo")acts='<button class="pact pri" data-action="take" data-id="'+t.id+'">Je prends</button><button class="pact" data-action="done" data-id="'+t.id+'">Fait ✓</button>';
-    else if(kind==="doing")acts='<button class="pact pri" data-action="done" data-id="'+t.id+'">Fait ✓</button>'+(t.assignee===state.me?'<button class="pact" data-action="drop" data-id="'+t.id+'">Lâcher</button>':'<button class="pact" data-action="take" data-id="'+t.id+'">Reprendre</button>');
+    var col="var(--p"+((i%6)+1)+")", as=taskAssignees(t), who=as.length?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+as.map(function(n){return '<span class="who">'+esc(n)+(n===state.me?" ·toi":"")+'</span>';}).join("")+'</div>':"", acts="";
+    if(kind==="todo")acts='<button class="pact pri" data-action="take" data-id="'+t.id+'">Rejoindre</button><button class="pact" data-action="done" data-id="'+t.id+'">Fait ✓</button>';
+    else if(kind==="doing")acts='<button class="pact pri" data-action="done" data-id="'+t.id+'">Fait ✓</button>'+(isMine(t)?'<button class="pact" data-action="drop" data-id="'+t.id+'">Me retirer</button>':'<button class="pact" data-action="take" data-id="'+t.id+'">Rejoindre</button>');
     else {who=t.done_by?'<span class="who">par '+esc(t.done_by)+'</span>':who;acts='<button class="pact" data-action="reopen" data-id="'+t.id+'">Rouvrir</button><button class="pact" data-action="del" data-id="'+t.id+'">Suppr</button>';}
     h+='<div class="postit'+(t.done?" done":"")+'" style="background:'+col+'"><div class="pt">'+esc(t.title)+'</div>'+(t.due_date?'<div class="tiny" style="font-weight:700;opacity:.85">📅 '+dayLabel(t.due_date)+(t.due_time?" "+t.due_time:"")+'</div>':"")+(t.note?'<div class="pn">'+esc(t.note)+'</div>':"")+who+'<div class="pacts">'+acts+'</div></div>';
   });
@@ -664,14 +672,16 @@ async function handle(a,el){
 
   if(a==="bump"){ bumpDuty(parseInt(el.getAttribute("data-duty"),10),parseInt(el.getAttribute("data-delta"),10)); return; }
 
-  if(a==="add-task"){ addTask(val("t-title"),val("t-note"),val("t-assignee"),val("t-date"),val("t-time")); return; }
+  if(a==="add-task"){ var asg=[].slice.call(document.querySelectorAll("#t-assignees .on")).map(function(x){return x.getAttribute("data-name");}); addTask(val("t-title"),val("t-note"),asg,val("t-date"),val("t-time")); return; }
+  if(a==="pickassignee"){ el.classList.toggle("on"); return; }
+  if(a==="togglehide"){ state.hideDone=!state.hideDone; lset("team:hideDone",state.hideDone?"1":"0"); render(); return; }
   if(a==="tasktab"){ state.taskTab=el.getAttribute("data-t"); render(); return; }
   if(a==="agenda-scope"){ state.agendaScope=el.getAttribute("data-s"); render(); return; }
   if(a==="agenda-day"){ state.agendaDay=el.getAttribute("data-d"); render(); return; }
   if(a==="reschedule"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{due_date:el.getAttribute("data-to")}); return; }
   if(a==="open-agenda"){ state.view="tasks"; state.taskTab="agenda"; render(); return; }
-  if(a==="take"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{assignee:state.me}); return; }
-  if(a==="drop"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{assignee:null}); return; }
+  if(a==="take"){ joinTask(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="drop"){ leaveTask(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="done"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{done:true,done_by:state.me}); return; }
   if(a==="reopen"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{done:false,done_by:null}); return; }
   if(a==="del"){ taskDelete(parseInt(el.getAttribute("data-id"),10)); return; }
@@ -720,7 +730,7 @@ function init(){
 }
 if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel};
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>
