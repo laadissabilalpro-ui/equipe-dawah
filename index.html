@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#E0795F">
-<meta name="description" content="Organisation de l'équipe da'wah — devoirs, tâches partagées et assiduité, en temps réel.">
+<meta name="description" content="QG de l'équipe da'wah — tâches, vidéos, argumentaires, récitations et idées, en temps réel.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -15,119 +15,127 @@
 <style>
   :root{
     --bg:#FBF7F0; --bg2:#F3EBDF; --card:#FFFFFF; --text:#2B2622; --muted:#8A7F76;
-    --accent:#E0795F; --accent-d:#C75F45; --line:#ECE3D8; --good:#4F9D69;
+    --accent:#E0795F; --accent-d:#C75F45; --line:#ECE3D8; --good:#4F9D69; --info:#5B8DEF;
     --strip0:#EAE0D2;
     --p1:#FFE8A3; --p2:#FFD3C6; --p3:#CFEAC6; --p4:#C7E0F4; --p5:#E7D4F2; --p6:#FAD9E6;
-    --shadow:0 6px 18px rgba(60,40,25,.10);
-    --postext:#3a322c;
+    --shadow:0 6px 18px rgba(60,40,25,.10); --postext:#3a322c;
   }
   [data-theme="dark"]{
-    --bg:#15120E; --bg2:#1d1914; --card:#221E18; --text:#F2EBE2; --muted:#A99E92;
-    --accent:#E88B73; --accent-d:#E0795F; --line:#332C24; --good:#62B27E;
-    --strip0:#322B22;
+    --bg:#15120E; --bg2:#1d1914; --card:#221E18; --text:#F2EBE2; --muted:#A99E92; --line:#332C24;
+    --good:#62B27E; --info:#7BA6F2; --strip0:#322B22;
     --p1:#caa94a; --p2:#cf8a76; --p3:#7fb073; --p4:#6f9cc0; --p5:#9d7fb8; --p6:#bd7e98;
-    --shadow:0 6px 18px rgba(0,0,0,.35);
-    --postext:#1c1813;
+    --shadow:0 6px 18px rgba(0,0,0,.35); --postext:#1c1813;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       padding-bottom:env(safe-area-inset-bottom)}
+  body{background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
   #app{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
   button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
   input,select,textarea{font:inherit;color:inherit}
-  .muted{color:var(--muted)}
-  .accent{color:var(--accent)}
+  a{color:var(--accent)}
+  .muted{color:var(--muted)} .accent{color:var(--accent)}
 
-  /* Header */
-  header{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg),var(--bg) 70%,rgba(251,247,240,0));
-         padding:14px 16px 8px;display:flex;align-items:center;gap:10px}
-  [data-theme="dark"] header{background:linear-gradient(var(--bg),var(--bg) 70%,rgba(21,18,14,0))}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;letter-spacing:.2px}
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg),var(--bg) 72%,rgba(251,247,240,0));padding:14px 16px 8px;display:flex;align-items:center;gap:8px}
+  [data-theme="dark"] header{background:linear-gradient(var(--bg),var(--bg) 72%,rgba(21,18,14,0))}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px}
   .logo{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff;flex:0 0 auto;box-shadow:var(--shadow)}
   .spacer{flex:1}
-  .iconbtn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--card);box-shadow:var(--shadow)}
-  .chip{font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);white-space:nowrap}
+  .iconbtn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--card);box-shadow:var(--shadow);position:relative}
+  .iconbtn svg{width:20px;height:20px}
+  .badge{position:absolute;top:-4px;right:-4px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:9px;display:grid;place-items:center;padding:0 3px}
+  .chip{font-size:12px;font-weight:700;padding:5px 9px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);white-space:nowrap}
 
-  /* View */
-  main{flex:1;padding:6px 16px 96px}
-  h2.sec{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:20px 4px 10px}
-  .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:14px}
+  main{flex:1;padding:6px 16px 100px}
+  h2.sec{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:20px 4px 10px}
+  .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
   .row{display:flex;align-items:center;gap:10px}
   .grow{flex:1;min-width:0}
-  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--bg2)}
+  .ttl{font-weight:700} .small{font-size:13px} .tiny{font-size:11.5px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--bg2)}
+  .pill.on{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+  .pill.info{background:color-mix(in srgb,var(--info) 16%,transparent);color:var(--info)}
+  .pill.warn{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent-d)}
   .btn{background:var(--accent);color:#fff;font-weight:700;padding:11px 16px;border-radius:13px;box-shadow:var(--shadow)}
   .btn:active{transform:translateY(1px)}
   .btn.sm{padding:8px 12px;border-radius:11px;font-size:14px}
   .btn.ghost{background:var(--card);color:var(--text);box-shadow:var(--shadow)}
   .btn.line{background:transparent;color:var(--accent);box-shadow:none;border:1.5px solid var(--accent)}
-  .round{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--bg2);font-weight:800;font-size:18px}
-  .ttl{font-weight:700}
-  .small{font-size:13px}
-  .tiny{font-size:11.5px}
-
-  /* Momentum */
-  .momento{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0 4px}
-  .momento .card{padding:12px;text-align:center}
-  .momento .big{font-size:26px;font-weight:800;line-height:1.1}
-  .momento .lbl{font-size:11.5px;color:var(--muted);margin-top:3px}
-
-  /* Member point card */
-  .mcard{margin-bottom:12px}
+  .btn.block{width:100%}
   .avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;flex:0 0 auto}
+
+  .momento{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0 4px}
+  .momento .card{padding:12px;text-align:center;margin:0}
+  .momento .big{font-size:24px;font-weight:800;line-height:1.1}
+  .momento .lbl{font-size:11px;color:var(--muted);margin-top:3px}
+  .links{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .linkcard{display:flex;align-items:center;gap:10px;background:var(--card);box-shadow:var(--shadow);border-radius:14px;padding:12px;font-weight:700}
+  .linkcard svg{width:22px;height:22px;color:var(--accent)}
+
   .strip{display:flex;gap:4px;margin-top:8px}
-  .sq{width:100%;height:16px;border-radius:5px;background:var(--strip0)}
+  .sq{width:100%;height:15px;border-radius:5px;background:var(--strip0)}
   .dlist{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
   .dpill{font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--bg2);color:var(--muted);display:inline-flex;gap:5px;align-items:center}
   .dpill.on{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
-  .dpill.miss{opacity:.7}
 
-  /* Duty (me) cards */
-  .duty{margin-bottom:12px}
   .counter{display:flex;align-items:center;gap:6px}
   .cbtn{width:40px;height:40px;border-radius:12px;background:var(--bg2);display:grid;place-items:center;font-size:22px;font-weight:700}
-  .cval{min-width:46px;text-align:center;font-size:22px;font-weight:800}
+  .cval{min-width:40px;text-align:center;font-size:22px;font-weight:800}
   .pbar{height:8px;border-radius:999px;background:var(--bg2);overflow:hidden;margin-top:10px}
   .pbar>i{display:block;height:100%;background:var(--good);border-radius:999px;transition:width .25s}
-  .done-badge{color:var(--good);font-weight:800;font-size:13px;display:inline-flex;gap:5px;align-items:center}
+  .done-badge{color:var(--good);font-weight:800;font-size:13px}
 
-  /* Tasks / post-its */
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-  .postit{background:var(--p1);color:var(--postext);border-radius:14px;padding:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;min-height:96px}
+  .postit{border-radius:14px;padding:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;min-height:92px;color:var(--postext)}
   .postit .pt{font-weight:800;font-size:15px;word-break:break-word}
   .postit .pn{font-size:13px;opacity:.85;word-break:break-word}
-  .postit.done{opacity:.62}
-  .postit.done .pt{text-decoration:line-through}
+  .postit.done{opacity:.62} .postit.done .pt{text-decoration:line-through}
   .who{font-size:11.5px;font-weight:800;background:rgba(0,0,0,.10);padding:3px 8px;border-radius:999px;align-self:flex-start}
   .pacts{display:flex;gap:7px;margin-top:auto;flex-wrap:wrap}
   .pact{font-size:12.5px;font-weight:800;padding:6px 10px;border-radius:9px;background:rgba(0,0,0,.12);color:var(--postext)}
   .pact.pri{background:rgba(0,0,0,.78);color:#fff}
 
-  /* Forms */
-  .field{width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:13px;padding:12px 13px;margin:7px 0}
+  .field{width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:13px;padding:11px 13px;margin:7px 0}
   .field:focus{outline:none;border-color:var(--accent)}
-  textarea.field{resize:vertical;min-height:54px}
+  textarea.field{resize:vertical;min-height:60px}
   label.lab{font-size:12.5px;font-weight:700;color:var(--muted);margin:6px 2px 0;display:block}
+  .seg{display:flex;gap:6px;margin:7px 0}
+  .seg button{flex:1;padding:9px;border-radius:11px;background:var(--bg2);font-weight:700;font-size:13px}
+  .seg button.on{background:var(--accent);color:#fff}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+  .tab2{font-size:13px;font-weight:700;padding:7px 12px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);color:var(--muted)}
+  .tab2.on{background:var(--accent);color:#fff}
 
-  /* Nav */
-  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--card) 92%,transparent);
-      backdrop-filter:saturate(1.4) blur(10px);border-top:1px solid var(--line);
-      display:flex;max-width:560px;margin:0 auto;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
-  .nav-i{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:700;padding:4px 2px;border-radius:12px}
+  .vid{display:flex;flex-direction:column;gap:8px}
+  .tagrow{display:flex;gap:6px;flex-wrap:wrap}
+  .platrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .plat{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--bg2);color:var(--muted)}
+  .plat.on{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good)}
+  .argbox{background:var(--bg2);border-radius:12px;padding:10px;margin-top:8px}
+  .copybtn{font-size:12px;font-weight:800;padding:5px 10px;border-radius:9px;background:var(--card);box-shadow:var(--shadow)}
+  .recit{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .check{width:30px;height:30px;border-radius:9px;border:2px solid var(--line);display:grid;place-items:center;flex:0 0 auto;font-weight:900}
+  .check.on{background:var(--good);border-color:var(--good);color:#fff}
+  .idea{border-left:4px solid var(--accent);padding:10px 12px;background:var(--card);box-shadow:var(--shadow);border-radius:12px;margin-bottom:10px}
+  .idea.amel{border-left-color:var(--info)}
+  .back{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--accent);margin-bottom:6px}
+  .empty{text-align:center;color:var(--muted);padding:26px 10px}
+
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:saturate(1.4) blur(10px);border-top:1px solid var(--line);display:flex;max-width:560px;margin:0 auto;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+  .nav-i{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px;font-weight:700;padding:4px 2px;border-radius:12px}
   .nav-i.on{color:var(--accent)}
-  .nav-i svg{width:24px;height:24px}
+  .nav-i svg{width:23px;height:23px}
 
-  /* Onboarding */
   .onb{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 22px;gap:6px;max-width:440px;margin:0 auto;width:100%}
   .onb .big{font-size:27px;font-weight:800;line-height:1.15}
   .names{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
   .namebtn{background:var(--card);box-shadow:var(--shadow);border-radius:14px;padding:14px;font-weight:800;display:flex;align-items:center;gap:10px}
   .namebtn .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:14px;flex:0 0 auto}
-  .empty{text-align:center;color:var(--muted);padding:30px 10px}
-  .fade{animation:f .25s ease}
-  @keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .fade{animation:f .22s ease}@keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .center{text-align:center}
-  .hidden{display:none!important}
+  .sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center}
+  .sheet .inner{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+  .sheet .opt{display:flex;align-items:center;gap:12px;padding:14px 6px;font-weight:700;border-bottom:1px solid var(--line)}
+  .sheet .opt svg{width:22px;height:22px;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -140,7 +148,7 @@
 
 /* ---------- Config ---------- */
 var SB_URL = "https://lpvuklsxnrqliarwvmst.supabase.co";
-var SB_KEY = "sb_publishable_OMWOk-Vvkr_2JGle1oz0kg_d1JLntHJ"; // clé publishable Supabase
+var SB_KEY = "sb_publishable_OMWOk-Vvkr_2JGle1oz0kg_d1JLntHJ";
 var DEFAULT_MEMBERS = ["Bilal","Fahim","Clément","Abdel","Idris","Moussa","Yacoub"];
 var DEFAULT_DUTIES = [
   {label:"Poster 1–2 vidéos", cadence:"per_day",  target:1, sort:1},
@@ -148,6 +156,19 @@ var DEFAULT_DUTIES = [
   {label:"Réciter (3×/sem)",  cadence:"per_week", target:3, sort:3},
   {label:"Point hebdo équipe", cadence:"per_week", target:1, sort:4}
 ];
+var DEFAULT_RECITS = [
+  {label:"Sourate Al-Fâtiha", surah:1, sort:1},
+  {label:"Ayat al-Kursî (2:255)", surah:2, ayah:255, sort:2},
+  {label:"Fin de Al-Baqara (2:285-286)", surah:2, ayah:285, sort:3},
+  {label:"Sourate Al-Kahf", surah:18, sort:4},
+  {label:"Sourate Yâ-Sîn", surah:36, sort:5},
+  {label:"Sourate Ar-Rahmân", surah:55, sort:6},
+  {label:"Sourate Al-Wâqi'a", surah:56, sort:7},
+  {label:"Sourate Al-Mulk", surah:67, sort:8},
+  {label:"Les 3 Qul (112-114)", surah:112, sort:9}
+];
+var PLATFORMS = ["YouTube","TikTok","Snap","Instagram","Facebook","X","WhatsApp","Telegram"];
+var KIND_LABEL = {appel:"📣 L'appel (à reposter)", mensongere:"⚠️ Mensongère (à répondre)", autre:"Autre"};
 var AV_COLORS = ["#E0795F","#5B8DEF","#4F9D69","#C46BB0","#E0A23C","#3FB0C9","#9B6BD6"];
 
 /* ---------- Helpers ---------- */
@@ -166,21 +187,24 @@ function avColor(name){var i=Math.max(0,DEFAULT_MEMBERS.indexOf(name));return AV
 function initials(name){return (name||"?").trim().charAt(0).toUpperCase();}
 function heat(frac){ if(frac<=0)return "var(--strip0)"; var h=8+frac*112; return "hsl("+h+" 58% 47%)"; }
 function debounce(fn,ms){var t;return function(){clearTimeout(t);t=setTimeout(fn,ms);};}
+function quranLink(s,a){ if(!s)return null; return "https://quran.com/"+s+(a?("/"+a):""); }
+function copyText(t){ try{ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).catch(fallbackCopy.bind(null,t));} else fallbackCopy(t);}catch(e){fallbackCopy(t);} }
+function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);}catch(e){} }
 
 /* ---------- State ---------- */
 var state = {
-  code: lget("team:code",""),
-  me: lget("team:me",""),
-  view: "point",
-  members: [], duties: [], logs: [], tasks: [],
-  ready:false, error:"", onbStep: "code", onbCode:"", onbNames:null
+  code: lget("team:code",""), me: lget("team:me",""),
+  view: "point", videoId:null, sheet:false,
+  videoFilter:"all", argQuery:"", ideaFilter:"all",
+  members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
+  ready:false, error:"", onbStep:"code", onbCode:"", onbNames:null
 };
-var sb = null, channel=null;
+var sb=null, channel=null;
 
 /* ---------- Supabase ---------- */
 function client(){
   if(sb) return sb;
-  var key = lget("team:sb_key", "") || SB_KEY;
+  var key = lget("team:sb_key","") || SB_KEY;
   if(!window.supabase || !window.supabase.createClient) throw new Error("supabase-js indisponible");
   sb = window.supabase.createClient(SB_URL, key, {realtime:{params:{eventsPerSecond:5}}});
   return sb;
@@ -188,361 +212,405 @@ function client(){
 function membersFor(code){ return client().from("team_members").select("*").eq("code",code); }
 
 async function ensureGroup(code){
-  var c = client();
-  var m = await c.from("team_members").select("name").eq("code",code);
-  if(!m.error && (!m.data || m.data.length===0)){
-    await c.from("team_members").upsert(DEFAULT_MEMBERS.map(function(n){return {code:code,name:n};}),
-      {onConflict:"code,name",ignoreDuplicates:true});
-  }
-  var d = await c.from("team_duties").select("id").eq("code",code);
-  if(!d.error && (!d.data || d.data.length===0)){
-    await c.from("team_duties").upsert(DEFAULT_DUTIES.map(function(x){return {code:code,label:x.label,cadence:x.cadence,target:x.target,sort:x.sort};}),
-      {onConflict:"code,label",ignoreDuplicates:true});
-  }
+  var c=client();
+  var m=await c.from("team_members").select("name").eq("code",code);
+  if(!m.error && (!m.data||m.data.length===0))
+    await c.from("team_members").upsert(DEFAULT_MEMBERS.map(function(n){return {code:code,name:n};}),{onConflict:"code,name",ignoreDuplicates:true});
+  var d=await c.from("team_duties").select("id").eq("code",code);
+  if(!d.error && (!d.data||d.data.length===0))
+    await c.from("team_duties").upsert(DEFAULT_DUTIES.map(function(x){return {code:code,label:x.label,cadence:x.cadence,target:x.target,sort:x.sort};}),{onConflict:"code,label",ignoreDuplicates:true});
+  var r=await c.from("team_recitations").select("id").eq("code",code);
+  if(!r.error && (!r.data||r.data.length===0))
+    await c.from("team_recitations").upsert(DEFAULT_RECITS.map(function(x){return {code:code,label:x.label,surah:x.surah,ayah:x.ayah||null,sort:x.sort};}),{onConflict:"code,label",ignoreDuplicates:true});
 }
 
 async function refreshAll(){
-  var c = client(), code = state.code;
-  var res = await Promise.all([
+  var c=client(), code=state.code;
+  var res=await Promise.all([
     c.from("team_members").select("*").eq("code",code).order("created_at",{ascending:true}),
     c.from("team_duties").select("*").eq("code",code).order("sort",{ascending:true}),
     c.from("team_duty_log").select("*").eq("code",code).gte("day",daysAgoStr(14)),
-    c.from("team_tasks").select("*").eq("code",code).order("created_at",{ascending:false})
+    c.from("team_tasks").select("*").eq("code",code).order("created_at",{ascending:false}),
+    c.from("team_videos").select("*").eq("code",code).order("created_at",{ascending:false}),
+    c.from("team_video_reposts").select("*").eq("code",code),
+    c.from("team_arguments").select("*").eq("code",code).order("created_at",{ascending:false}),
+    c.from("team_recitations").select("*").eq("code",code).order("sort",{ascending:true}),
+    c.from("team_ideas").select("*").eq("code",code).order("created_at",{ascending:false})
   ]);
-  state.members = res[0].data||[];
-  state.duties  = res[1].data||[];
-  state.logs    = res[2].data||[];
-  state.tasks   = res[3].data||[];
-  state.ready = true;
-  render();
+  state.members=res[0].data||[]; state.duties=res[1].data||[]; state.logs=res[2].data||[]; state.tasks=res[3].data||[];
+  state.videos=res[4].data||[]; state.reposts=res[5].data||[]; state.args=res[6].data||[]; state.recits=res[7].data||[]; state.ideas=res[8].data||[];
+  state.ready=true; render();
 }
-var debRefresh = debounce(function(){ refreshAll().catch(function(e){console.warn(e);}); }, 280);
+var debRefresh = debounce(function(){ refreshAll().catch(function(e){console.warn(e);}); }, 260);
 
 function subscribe(){
-  var c = client();
+  var c=client();
   if(channel){ try{c.removeChannel(channel);}catch(e){} }
-  var f = "code=eq."+state.code;
-  channel = c.channel("team-"+state.code)
-    .on("postgres_changes",{event:"*",schema:"public",table:"team_members",filter:f},debRefresh)
-    .on("postgres_changes",{event:"*",schema:"public",table:"team_duties",filter:f},debRefresh)
-    .on("postgres_changes",{event:"*",schema:"public",table:"team_duty_log",filter:f},debRefresh)
-    .on("postgres_changes",{event:"*",schema:"public",table:"team_tasks",filter:f},debRefresh)
-    .subscribe();
+  var f="code=eq."+state.code;
+  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas"];
+  channel=c.channel("team-"+state.code);
+  tables.forEach(function(t){ channel.on("postgres_changes",{event:"*",schema:"public",table:t,filter:f},debRefresh); });
+  channel.subscribe();
 }
 
 /* ---------- Mutations ---------- */
-function logFor(member,dutyId,day){
-  for(var i=0;i<state.logs.length;i++){var l=state.logs[i];
-    if(l.member===member&&l.duty_id===dutyId&&l.day===day)return l;}
-  return null;
-}
+function logFor(member,dutyId,day){ for(var i=0;i<state.logs.length;i++){var l=state.logs[i]; if(l.member===member&&l.duty_id===dutyId&&l.day===day)return l;} return null; }
 async function bumpDuty(dutyId,delta){
-  var day=today(), cur=logFor(state.me,dutyId,day), n=Math.max(0,(cur?cur.count:0)+delta);
-  // optimistic
-  if(cur){cur.count=n;} else {state.logs.push({code:state.code,member:state.me,duty_id:dutyId,day:day,count:n});}
-  render();
-  await client().from("team_duty_log").upsert(
-    {code:state.code,member:state.me,duty_id:dutyId,day:day,count:n,updated_at:new Date().toISOString()},
-    {onConflict:"code,member,duty_id,day"});
+  var day=today(),cur=logFor(state.me,dutyId,day),n=Math.max(0,(cur?cur.count:0)+delta);
+  if(cur)cur.count=n; else state.logs.push({code:state.code,member:state.me,duty_id:dutyId,day:day,count:n}); render();
+  await client().from("team_duty_log").upsert({code:state.code,member:state.me,duty_id:dutyId,day:day,count:n,updated_at:new Date().toISOString()},{onConflict:"code,member,duty_id,day"});
 }
-async function addTask(title,note,assignee){
-  if(!title.trim())return;
-  await client().from("team_tasks").insert({code:state.code,title:title.trim(),note:(note||"").trim()||null,
-    assignee:assignee||null,created_by:state.me});
+async function addTask(title,note,assignee){ if(!title.trim())return; await client().from("team_tasks").insert({code:state.code,title:title.trim(),note:(note||"").trim()||null,assignee:assignee||null,created_by:state.me}); await refreshAll(); }
+async function taskUpdate(id,p){ p.updated_at=new Date().toISOString(); await client().from("team_tasks").update(p).eq("id",id); await refreshAll(); }
+async function taskDelete(id){ await client().from("team_tasks").delete().eq("id",id); await refreshAll(); }
+async function addMember(name){ name=(name||"").trim(); if(!name)return; await client().from("team_members").upsert({code:state.code,name:name},{onConflict:"code,name",ignoreDuplicates:true}); await refreshAll(); }
+async function addDuty(label,cadence,target){ label=(label||"").trim(); if(!label)return; var s=state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0)+1; await client().from("team_duties").upsert({code:state.code,label:label,cadence:cadence,target:target||1,sort:s},{onConflict:"code,label",ignoreDuplicates:true}); await refreshAll(); }
+
+async function addVideo(title,topic,kind,url,platform){ if(!title.trim())return; await client().from("team_videos").insert({code:state.code,title:title.trim(),topic:(topic||"").trim()||null,kind:kind||"appel",url:(url||"").trim()||null,platform:(platform||"").trim()||null,added_by:state.me}); await refreshAll(); }
+async function delVideo(id){ await client().from("team_videos").delete().eq("id",id); state.view="videos"; state.videoId=null; await refreshAll(); }
+async function toggleRepost(videoId,platform){
+  var ex=state.reposts.find(function(r){return r.video_id===videoId&&r.member===state.me&&r.platform===platform;});
+  if(ex) await client().from("team_video_reposts").delete().eq("id",ex.id);
+  else await client().from("team_video_reposts").insert({code:state.code,video_id:videoId,member:state.me,platform:platform});
   await refreshAll();
 }
-async function taskUpdate(id,patch){
-  patch.updated_at=new Date().toISOString();
-  await client().from("team_tasks").update(patch).eq("id",id);
-  await refreshAll();
-}
-async function taskDelete(id){
-  await client().from("team_tasks").delete().eq("id",id);
-  await refreshAll();
-}
-async function addMember(name){
-  name=(name||"").trim(); if(!name)return;
-  await client().from("team_members").upsert({code:state.code,name:name},{onConflict:"code,name",ignoreDuplicates:true});
-  await refreshAll();
-}
-async function addDuty(label,cadence,target){
-  label=(label||"").trim(); if(!label)return;
-  var sort=(state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0))+1;
-  await client().from("team_duties").upsert({code:state.code,label:label,cadence:cadence,target:target||1,sort:sort},
-    {onConflict:"code,label",ignoreDuplicates:true});
-  await refreshAll();
-}
+async function addArgument(topic,title,body,ref,videoId){ if(!title.trim())return; await client().from("team_arguments").insert({code:state.code,topic:(topic||"").trim()||null,title:title.trim(),body:(body||"").trim()||null,ref:(ref||"").trim()||null,video_id:videoId||null,added_by:state.me}); await refreshAll(); }
+async function delArgument(id){ await client().from("team_arguments").delete().eq("id",id); await refreshAll(); }
+async function addRecit(label,surah,ayah){ label=(label||"").trim(); if(!label)return; var s=state.recits.reduce(function(m,r){return Math.max(m,r.sort||0);},0)+1; await client().from("team_recitations").upsert({code:state.code,label:label,surah:surah||null,ayah:ayah||null,sort:s},{onConflict:"code,label",ignoreDuplicates:true}); await refreshAll(); }
+async function toggleRecit(id,done){ await client().from("team_recitations").update({done:done,done_by:done?state.me:null}).eq("id",id); await refreshAll(); }
+async function delRecit(id){ await client().from("team_recitations").delete().eq("id",id); await refreshAll(); }
+async function addIdea(text,kind){ if(!text.trim())return; await client().from("team_ideas").insert({code:state.code,text:text.trim(),kind:kind||"idee",author:state.me}); await refreshAll(); }
+async function ideaToTask(idea){ await client().from("team_tasks").insert({code:state.code,title:idea.text,note:(idea.kind==="amelioration"?"Amélioration":"Idée")+" · "+(idea.author||""),created_by:state.me}); await client().from("team_ideas").update({status:"retenue"}).eq("id",idea.id); state.view="tasks"; await refreshAll(); }
+async function setIdea(id,status){ await client().from("team_ideas").update({status:status}).eq("id",id); await refreshAll(); }
+async function delIdea(id){ await client().from("team_ideas").delete().eq("id",id); await refreshAll(); }
 
 /* ---------- Computations ---------- */
 function dailyDuties(){return state.duties.filter(function(d){return d.cadence==="per_day";});}
 function weeklyDuties(){return state.duties.filter(function(d){return d.cadence==="per_week";});}
 function countOn(member,dutyId,day){var l=logFor(member,dutyId,day);return l?l.count:0;}
-function weekSum(member,dutyId){var ws=weekStart(),s=0;
-  for(var i=0;i<state.logs.length;i++){var l=state.logs[i];
-    if(l.member===member&&l.duty_id===dutyId&&l.day>=ws)s+=l.count;}
-  return s;}
-function dayFrac(member,day){var dd=dailyDuties();if(!dd.length)return 0;var done=0;
-  for(var i=0;i<dd.length;i++)if(countOn(member,dd[i].id,day)>=(dd[i].target||1))done++;
-  return done/dd.length;}
-function membersSorted(){
-  var arr=state.members.slice();
-  arr.sort(function(a,b){ if(a.name===state.me)return -1; if(b.name===state.me)return 1; return 0; });
-  return arr;
-}
+function weekSum(member,dutyId){var ws=weekStart(),s=0;for(var i=0;i<state.logs.length;i++){var l=state.logs[i];if(l.member===member&&l.duty_id===dutyId&&l.day>=ws)s+=l.count;}return s;}
+function dayFrac(member,day){var dd=dailyDuties();if(!dd.length)return 0;var n=0;for(var i=0;i<dd.length;i++)if(countOn(member,dd[i].id,day)>=(dd[i].target||1))n++;return n/dd.length;}
+function membersSorted(){var a=state.members.slice();a.sort(function(x,y){if(x.name===state.me)return -1;if(y.name===state.me)return 1;return 0;});return a;}
+function repostsFor(vid){return state.reposts.filter(function(r){return r.video_id===vid;});}
+function argsFor(vid){return state.args.filter(function(a){return a.video_id===vid;});}
+function recitsLeft(){return state.recits.filter(function(r){return !r.done;}).length;}
+function ideasNew(){return state.ideas.filter(function(i){return i.status==="nouvelle";}).length;}
+function shortLabel(s){return String(s).replace(/\s*\(.*?\)\s*/g,"").replace("Poster 1–2 vidéos","Vidéos").replace("Partager l'appel","Appel").replace("Point hebdo équipe","Point hebdo").replace("Réciter","Récit.");}
 
 /* ---------- Icons ---------- */
 var IC={
   point:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>',
-  duties:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  videos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/></svg>',
+  args:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  recits:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
   tasks:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z"/><path d="M15 3v6h6"/></svg>',
-  settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 6 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H0a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 1.3 6"/></svg>',
+  idea:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>',
+  duties:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 6 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 2.6 14H3a2 2 0 1 1 0-4h-.1A1.7 1.7 0 0 0 4.6 7"/></svg>',
   moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>',
   sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
-  logo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a9 9 0 0 1 18 0"/><path d="M12 11v8"/><circle cx="12" cy="20" r="1.4" fill="currentColor" stroke="none"/></svg>'
+  logo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a9 9 0 0 1 18 0"/><path d="M12 11v8"/><circle cx="12" cy="20" r="1.4" fill="currentColor" stroke="none"/></svg>',
+  open:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>'
 };
 
 /* ---------- Render ---------- */
-var app = document.getElementById("app");
-
+var app=document.getElementById("app");
 function render(){
   if(state.error){ app.innerHTML='<div class="onb"><div class="card center"><b>Souci de connexion</b><p class="muted small">'+esc(state.error)+'</p><button class="btn" data-action="retry">Réessayer</button></div></div>'; return; }
-  if(!state.code || !state.me){ renderOnboard(); return; }
+  if(!state.code||!state.me){ renderOnboard(); return; }
   var v=state.view, body="";
-  if(v==="point") body=viewPoint();
-  else if(v==="duties") body=viewDuties();
-  else if(v==="tasks") body=viewTasks();
-  else if(v==="settings") body=viewSettings();
-  app.innerHTML = header() + '<main class="fade">'+ body +'</main>' + nav();
+  if(v==="point")body=viewPoint();
+  else if(v==="videos")body=viewVideos();
+  else if(v==="videoDetail")body=viewVideoDetail();
+  else if(v==="args")body=viewArguments();
+  else if(v==="recits")body=viewRecits();
+  else if(v==="tasks")body=viewTasks();
+  else if(v==="ideas")body=viewIdeas();
+  else if(v==="duties")body=viewDuties();
+  else if(v==="settings")body=viewSettings();
+  app.innerHTML=header()+'<main class="fade">'+body+'</main>'+nav()+(state.sheet?sheet():"");
 }
-
 function header(){
-  var dark = document.documentElement.getAttribute("data-theme")==="dark";
-  return '<header>'+
-    '<div class="logo">'+IC.logo+'</div>'+
-    '<div class="brand">L\'Appel</div>'+
-    '<div class="spacer"></div>'+
-    '<span class="chip">Groupe '+esc(state.code)+'</span>'+
+  var dark=document.documentElement.getAttribute("data-theme")==="dark";
+  var nb=ideasNew();
+  return '<header><div class="logo">'+IC.logo+'</div><div class="brand">L\'Appel</div><div class="spacer"></div>'+
+    '<button class="iconbtn" data-action="go" data-view="ideas" aria-label="Idées">'+IC.idea+(nb?'<span class="badge">'+nb+'</span>':'')+'</button>'+
     '<button class="iconbtn" data-action="theme" aria-label="Thème">'+(dark?IC.sun:IC.moon)+'</button>'+
-    '</header>';
+    '<button class="iconbtn" data-action="go" data-view="settings" aria-label="Réglages">'+IC.gear+'</button></header>';
 }
-
 function nav(){
-  function item(id,label){return '<button class="nav-i'+(state.view===id?' on':'')+'" data-nav="'+id+'">'+IC[id]+'<span>'+label+'</span></button>';}
-  return '<nav>'+item("point","Le point")+item("duties","Mes devoirs")+item("tasks","Tâches")+item("settings","Réglages")+'</nav>';
+  function it(id,label){return '<button class="nav-i'+(state.view===id||(id==="videos"&&state.view==="videoDetail")?" on":"")+'" data-nav="'+id+'">'+IC[id]+'<span>'+label+'</span></button>';}
+  return '<nav>'+it("point","Le point")+it("videos","Vidéos")+it("args","Argum.")+it("recits","Récit.")+it("tasks","Tâches")+'</nav>';
 }
+function sheet(){
+  return '<div class="sheet" data-action="sheet-close"><div class="inner" data-stop="1">'+
+    '<div class="opt" data-action="go" data-view="duties">'+IC.duties+' Mes devoirs</div>'+
+    '<div class="opt" data-action="go" data-view="ideas">'+IC.idea+' Idées</div>'+
+    '<div class="opt" data-action="go" data-view="settings">'+IC.gear+' Réglages</div>'+
+    '<div class="center" style="margin-top:12px"><button class="btn ghost sm" data-action="sheet-close">Fermer</button></div></div></div>';
+}
+function loading(){return '<div class="empty fade">Synchronisation…</div>';}
 
-/* ----- Le point (équipe) ----- */
+/* ----- Le point (hub) ----- */
 function viewPoint(){
-  if(!state.ready) return loading();
+  if(!state.ready)return loading();
   var dd=dailyDuties(), tdy=today();
-  // momentum
-  var totalDaily=0, doneDaily=0, shares=0, vids=0;
-  var dutyVid=state.duties.find(function(d){return /vid/i.test(d.label);});
-  var dutyShare=state.duties.find(function(d){return /appel|partage/i.test(d.label);});
-  state.members.forEach(function(m){
-    dd.forEach(function(d){ totalDaily++; if(countOn(m.name,d.id,tdy)>=(d.target||1))doneDaily++; });
-    if(dutyVid) vids+=countOn(m.name,dutyVid.id,tdy);
-    if(dutyShare) shares+=countOn(m.name,dutyShare.id,tdy);
-  });
+  var vids=state.videos.length, rec=recitsLeft(), ide=ideasNew(), openTasks=state.tasks.filter(function(t){return !t.done;}).length;
   var h='<div class="momento">'+
-    momo(vids,"🎥 Vidéos / jour")+
-    momo(shares,"📣 Appels partagés")+
-    momo(doneDaily+'/'+totalDaily,"✅ Devoirs du jour")+
-  '</div>';
+    momo(state.videos.filter(function(v){return v.kind==="appel";}).length,"📣 Appels à reposter")+
+    momo(rec,"📖 Récit. restantes")+
+    momo(openTasks,"📌 Tâches ouvertes")+'</div>';
+  h+='<div class="links" style="margin-top:6px">'+
+    link("videos",IC.videos,"Vidéos ("+vids+")")+
+    link("args",IC.args,"Argumentaires ("+state.args.length+")")+
+    link("recits",IC.recits,"Récitations")+
+    link("ideas",IC.idea,"Idées"+(ide?" ("+ide+")":""))+'</div>';
 
-  h+='<h2 class="sec">L\'équipe aujourd\'hui</h2>';
+  // mes devoirs du jour (rapide)
+  h+='<h2 class="sec">Mes devoirs du jour</h2><div class="card">';
+  if(!dd.length) h+='<div class="muted small">Aucun devoir quotidien.</div>';
+  dd.forEach(function(d){var c=countOn(state.me,d.id,tdy),ok=c>=(d.target||1);
+    h+='<div class="row" style="padding:5px 0"><div class="grow"><b>'+esc(d.label)+'</b></div>'+
+      '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓ "+c:"·")+'</span>'+
+      '<button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="width:34px;height:34px;background:var(--accent);color:#fff">+</button></div>';});
+  h+='<button class="btn ghost sm block" data-action="go" data-view="duties" style="margin-top:8px">Tous mes devoirs →</button></div>';
+
+  // l'équipe
+  h+='<h2 class="sec">L\'équipe</h2>';
   var days=last7();
   membersSorted().forEach(function(m){
-    var isMe=m.name===state.me;
-    // today's daily pills
-    var pills=dd.map(function(d){
-      var ok=countOn(m.name,d.id,tdy)>=(d.target||1);
-      return '<span class="dpill'+(ok?' on':' miss')+'">'+(ok?'✓':'·')+' '+esc(shortLabel(d.label))+'</span>';
-    }).join("");
-    // weekly duties
-    var wk=weeklyDuties().map(function(d){
-      var s=weekSum(m.name,d.id), ok=s>=(d.target||1);
-      return '<span class="dpill'+(ok?' on':'')+'">'+esc(shortLabel(d.label))+' '+s+'/'+(d.target||1)+'</span>';
-    }).join("");
-    // 7-day strip
-    var strip=days.map(function(day){var f=dayFrac(m.name,day);
-      return '<div class="sq" title="'+day+'" style="background:'+heat(f)+'"></div>';}).join("");
-    h+='<div class="card mcard">'+
-      '<div class="row">'+
-        '<div class="avatar" style="background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div>'+
-        '<div class="grow"><div class="ttl">'+esc(m.name)+(isMe?' <span class="tiny accent">(toi)</span>':'')+'</div>'+
-          (m.platform?'<div class="tiny muted">'+esc(m.platform)+'</div>':'')+'</div>'+
-      '</div>'+
-      '<div class="dlist">'+pills+wk+'</div>'+
-      '<div class="strip">'+strip+'</div>'+
-    '</div>';
+    var pills=dd.map(function(d){var ok=countOn(m.name,d.id,tdy)>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓":"·")+" "+esc(shortLabel(d.label))+'</span>';}).join("");
+    var wk=weeklyDuties().map(function(d){var s=weekSum(m.name,d.id),ok=s>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+esc(shortLabel(d.label))+" "+s+"/"+(d.target||1)+'</span>';}).join("");
+    var strip=days.map(function(day){return '<div class="sq" title="'+day+'" style="background:'+heat(dayFrac(m.name,day))+'"></div>';}).join("");
+    h+='<div class="card"><div class="row"><div class="avatar" style="background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow"><div class="ttl">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div></div><div class="dlist">'+pills+wk+'</div><div class="strip">'+strip+'</div></div>';
   });
-  h+='<p class="tiny muted center" style="margin-top:14px">Bande = 7 derniers jours · plus c\'est vert, plus l\'assiduité est haute.</p>';
   return h;
 }
 function momo(v,l){return '<div class="card"><div class="big">'+v+'</div><div class="lbl">'+l+'</div></div>';}
-function shortLabel(s){return s.replace(/\s*\(.*?\)\s*/g,"").replace("Poster 1–2 vidéos","Vidéos").replace("Partager l'appel","Appel").replace("Point hebdo équipe","Point hebdo").replace("Réciter","Récit.");}
+function link(view,ic,label){return '<button class="linkcard" data-action="go" data-view="'+view+'">'+ic+'<span class="grow">'+label+'</span></button>';}
 
-/* ----- Mes devoirs ----- */
-function viewDuties(){
-  if(!state.ready) return loading();
-  var tdy=today();
-  var h='<h2 class="sec">Mes devoirs — '+esc(state.me)+'</h2>';
-  if(!state.duties.length) h+='<div class="empty">Aucun devoir pour l\'instant.</div>';
-  state.duties.forEach(function(d){
-    var perDay=d.cadence==="per_day";
-    var cur=perDay?countOn(state.me,d.id,tdy):weekSum(state.me,d.id);
-    var tg=d.target||1, done=cur>=tg, frac=Math.min(1,cur/tg);
-    h+='<div class="card duty">'+
-      '<div class="row">'+
-        '<div class="grow"><div class="ttl">'+esc(d.label)+'</div>'+
-          '<div class="tiny muted">'+(perDay?"Chaque jour":"Chaque semaine")+' · objectif '+tg+'</div></div>'+
-        '<div class="counter">'+
-          '<button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="-1">−</button>'+
-          '<div class="cval">'+cur+'</div>'+
-          '<button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="background:var(--accent);color:#fff">+</button>'+
-        '</div>'+
-      '</div>'+
-      '<div class="pbar"><i style="width:'+(frac*100)+'%"></i></div>'+
-      (done?'<div class="done-badge" style="margin-top:8px">✓ Objectif atteint '+(perDay?"aujourd\'hui":"cette semaine")+'</div>':
-            '<div class="tiny muted" style="margin-top:8px">'+(perDay?"Aujourd'hui":"Cette semaine")+' : '+cur+' / '+tg+'</div>')+
+/* ----- Vidéos ----- */
+function viewVideos(){
+  if(!state.ready)return loading();
+  var h='<div class="card"><div class="ttl" style="margin-bottom:4px">Ajouter une vidéo</div>'+
+    '<input id="v-title" class="field" placeholder="Titre (ex. L\'appel — épisode 12)">'+
+    '<div class="row"><input id="v-topic" class="field" style="margin:0" placeholder="Sujet (ex. Tawhid)"><input id="v-platform" class="field" style="margin:0;width:42%" placeholder="Plateforme"></div>'+
+    '<input id="v-url" class="field" placeholder="Lien (YouTube, etc.)">'+
+    '<label class="lab">Type</label>'+
+    '<select id="v-kind" class="field">'+
+      '<option value="appel">📣 L\'appel (à reposter)</option>'+
+      '<option value="mensongere">⚠️ Mensongère (à répondre)</option>'+
+      '<option value="autre">Autre</option></select>'+
+    '<button class="btn block" data-action="add-video">Ajouter</button></div>';
+
+  h+='<div class="toolbar">'+tab2("all","Toutes")+tab2("appel","📣 À reposter")+tab2("mensongere","⚠️ À répondre")+'</div>';
+  var list=state.videos.filter(function(v){return state.videoFilter==="all"||v.kind===state.videoFilter;});
+  if(!list.length) h+='<div class="empty">Aucune vidéo ici pour l\'instant.</div>';
+  list.forEach(function(v){
+    var rp=repostsFor(v.id), na=argsFor(v.id).length;
+    var mineP={}; rp.forEach(function(r){if(r.member===state.me)mineP[r.platform]=1;});
+    var plats=PLATFORMS.slice(0,6).map(function(p){var on=mineP[p];var cnt=rp.filter(function(r){return r.platform===p;}).length;return '<button class="plat'+(on?" on":"")+'" data-action="repost" data-video="'+v.id+'" data-plat="'+esc(p)+'">'+esc(p)+(cnt?" ·"+cnt:"")+'</button>';}).join("");
+    h+='<div class="card vid"><div class="row"><div class="grow"><div class="ttl">'+esc(v.title)+'</div>'+
+      '<div class="tagrow" style="margin-top:5px">'+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(v.kind==="appel"?"📣 Appel":v.kind==="mensongere"?"⚠️ Réponse":"Autre")+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div></div></div>'+
+      (v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener" style="align-self:flex-start">Ouvrir la vidéo ↗</a>':"")+
+      (v.kind==="appel"?'<div><div class="tiny muted" style="margin-top:6px">Tu l\'as reposté sur :</div><div class="platrow">'+plats+'</div></div>':"")+
+      '<button class="btn line sm" data-action="open-video" data-id="'+v.id+'" style="align-self:flex-start;margin-top:4px">Détails / argumentaires'+(na?" ("+na+")":"")+'</button>'+
     '</div>';
   });
-  h+='<p class="tiny muted center" style="margin-top:8px">Touche + à chaque fois que tu accomplis le devoir. Tout le monde voit le point en direct.</p>';
+  return h;
+}
+function tab2(id,label){return '<button class="tab2'+(state.videoFilter===id?" on":"")+'" data-action="vfilter" data-f="'+id+'">'+label+'</button>';}
+
+function viewVideoDetail(){
+  var v=state.videos.find(function(x){return x.id===state.videoId;});
+  if(!v)return '<div class="empty">Vidéo introuvable.</div>';
+  var rp=repostsFor(v.id), aa=argsFor(v.id);
+  var h='<button class="back" data-action="go" data-view="videos">← Vidéos</button>';
+  h+='<div class="card"><div class="ttl" style="font-size:18px">'+esc(v.title)+'</div>'+
+    '<div class="tagrow" style="margin-top:6px">'+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(KIND_LABEL[v.kind]||v.kind)+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div>'+
+    (v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener" style="margin-top:10px">Ouvrir la vidéo ↗</a>':"")+
+    '<div class="tiny muted" style="margin-top:8px">Ajoutée par '+esc(v.added_by||"?")+'</div></div>';
+  if(v.kind==="appel"){
+    h+='<h2 class="sec">Reposts de l\'équipe</h2><div class="card">';
+    var byP={}; rp.forEach(function(r){(byP[r.platform]=byP[r.platform]||[]).push(r.member);});
+    if(!Object.keys(byP).length) h+='<div class="muted small">Personne n\'a encore reposté. Va dans Vidéos pour cocher tes plateformes.</div>';
+    Object.keys(byP).forEach(function(p){ h+='<div class="row" style="padding:4px 0"><div class="grow"><b>'+esc(p)+'</b></div><span class="tiny muted">'+esc(byP[p].join(", "))+'</span></div>'; });
+    h+='</div>';
+  }
+  h+='<h2 class="sec">Argumentaires sur cette vidéo</h2>';
+  h+='<div class="card"><input id="va-title" class="field" placeholder="Titre de l\'argumentaire">'+
+    '<input id="va-topic" class="field" placeholder="Sujet" value="'+(v.topic?esc(v.topic):"")+'">'+
+    '<textarea id="va-body" class="field" placeholder="Le texte à coller en réponse…"></textarea>'+
+    '<input id="va-ref" class="field" placeholder="Lien source / référence (optionnel)">'+
+    '<button class="btn block" data-action="add-arg-video" data-video="'+v.id+'">Coller un argumentaire</button></div>';
+  if(!aa.length) h+='<div class="empty">Aucun argumentaire pour cette vidéo.</div>';
+  aa.forEach(function(a){ h+=argCard(a); });
+  h+='<div class="center" style="margin-top:16px"><button class="btn line sm" data-action="del-video" data-id="'+v.id+'">Supprimer la vidéo</button></div>';
   return h;
 }
 
-/* ----- Tâches partagées ----- */
+function argCard(a){
+  return '<div class="card"><div class="row"><div class="grow"><div class="ttl">'+esc(a.title)+'</div>'+
+    (a.topic?'<span class="pill" style="margin-top:5px">'+esc(a.topic)+'</span>':"")+'</div></div>'+
+    (a.body?'<div class="argbox">'+esc(a.body)+'</div>':"")+
+    '<div class="row" style="margin-top:9px;gap:7px">'+
+      (a.body?'<button class="copybtn" data-action="copy-arg" data-id="'+a.id+'">Copier</button>':"")+
+      (a.ref?'<a class="copybtn" href="'+esc(a.ref)+'" target="_blank" rel="noopener">Source ↗</a>':"")+
+      '<div class="grow"></div><span class="tiny muted">'+esc(a.added_by||"")+'</span>'+
+      '<button class="copybtn" data-action="del-arg" data-id="'+a.id+'">✕</button></div></div>';
+}
+function viewArguments(){
+  if(!state.ready)return loading();
+  var h='<div class="card"><div class="ttl" style="margin-bottom:4px">Nouvel argumentaire</div>'+
+    '<input id="a-topic" class="field" placeholder="Sujet (ex. Divinité, Science, Histoire…)">'+
+    '<input id="a-title" class="field" placeholder="Titre court">'+
+    '<textarea id="a-body" class="field" placeholder="Le texte / la réponse…"></textarea>'+
+    '<input id="a-ref" class="field" placeholder="Lien source (optionnel)">'+
+    '<button class="btn block" data-action="add-arg">Ajouter à la bibliothèque</button></div>';
+  h+='<input id="a-search" class="field" placeholder="Filtrer par sujet ou mot-clé" value="'+esc(state.argQuery)+'">';
+  var q=state.argQuery.toLowerCase().trim();
+  var lib=state.args.filter(function(a){ if(q){var hay=((a.topic||"")+" "+a.title+" "+(a.body||"")).toLowerCase(); if(hay.indexOf(q)<0)return false;} return true; });
+  if(!lib.length){ h+='<div class="empty">'+(q?"Rien ne correspond.":"Bibliothèque vide — ajoute ton premier argumentaire.")+'</div>'; return h; }
+  var groups={}; lib.forEach(function(a){var t=a.topic||"Sans sujet";(groups[t]=groups[t]||[]).push(a);});
+  Object.keys(groups).sort().forEach(function(t){
+    h+='<h2 class="sec">'+esc(t)+' ('+groups[t].length+')</h2>';
+    groups[t].forEach(function(a){ h+=argCard(a); });
+  });
+  return h;
+}
+
+function viewRecits(){
+  if(!state.ready)return loading();
+  var done=state.recits.filter(function(r){return r.done;}), left=state.recits.filter(function(r){return !r.done;});
+  var h='<div class="card"><div class="row"><div class="grow"><div class="ttl">Récitations</div><div class="tiny muted">Coche ce qui est fait, ouvre le verset sur quran.com.</div></div><span class="pill '+(left.length?"warn":"on")+'">'+done.length+'/'+state.recits.length+'</span></div>'+
+    '<div class="pbar" style="margin-top:10px"><i style="width:'+(state.recits.length?Math.round(done.length/state.recits.length*100):0)+'%"></i></div></div>';
+  h+='<h2 class="sec">À réciter ('+left.length+')</h2><div class="card">';
+  if(!left.length) h+='<div class="muted small center">Tout est fait, maa shaa Allah ✓</div>';
+  left.forEach(function(r){ h+=recitRow(r); });
+  h+='</div>';
+  if(done.length){ h+='<h2 class="sec">Faites ('+done.length+')</h2><div class="card">'; done.forEach(function(r){ h+=recitRow(r); }); h+='</div>'; }
+  h+='<h2 class="sec">Ajouter une récitation</h2><div class="card">'+
+    '<input id="r-label" class="field" placeholder="Libellé (ex. Sourate An-Nâs)">'+
+    '<div class="row"><input id="r-surah" class="field" style="margin:0" type="number" min="1" max="114" inputmode="numeric" placeholder="N° sourate (1-114)"><input id="r-ayah" class="field" style="margin:0;width:42%" type="number" min="1" inputmode="numeric" placeholder="Verset (option)"></div>'+
+    '<button class="btn block" data-action="add-recit" style="margin-top:8px">Ajouter</button></div>';
+  return h;
+}
+function recitRow(r){
+  var lnk=quranLink(r.surah,r.ayah);
+  return '<div class="recit"><button class="check'+(r.done?" on":"")+'" data-action="recit-toggle" data-id="'+r.id+'" data-done="'+(r.done?0:1)+'">'+(r.done?"✓":"")+'</button>'+
+    '<div class="grow"><div class="ttl small">'+esc(r.label)+'</div>'+(r.done&&r.done_by?'<div class="tiny muted">par '+esc(r.done_by)+'</div>':"")+'</div>'+
+    (lnk?'<a class="copybtn" href="'+esc(lnk)+'" target="_blank" rel="noopener">quran.com ↗</a>':"")+
+    '<button class="copybtn" data-action="del-recit" data-id="'+r.id+'">✕</button></div>';
+}
+
 function viewTasks(){
-  if(!state.ready) return loading();
+  if(!state.ready)return loading();
   var opts='<option value="">— à prendre —</option>'+state.members.map(function(m){return '<option value="'+esc(m.name)+'"'+(m.name===state.me?" selected":"")+'>'+esc(m.name)+'</option>';}).join("");
-  var h='<div class="card" style="margin-top:8px">'+
-    '<input id="t-title" class="field" placeholder="Nouvelle tâche (ex. monter la vidéo du vendredi)">'+
-    '<input id="t-note" class="field" placeholder="Note (optionnel)">'+
-    '<label class="lab">Pour qui ?</label>'+
-    '<select id="t-assignee" class="field">'+opts+'</select>'+
-    '<button class="btn" data-action="add-task" style="width:100%">Ajouter la tâche</button>'+
-  '</div>';
-
-  var todo=state.tasks.filter(function(t){return !t.done && !t.assignee;});
-  var doing=state.tasks.filter(function(t){return !t.done && t.assignee;});
-  var done=state.tasks.filter(function(t){return t.done;});
-
-  h+=section("À prendre ("+todo.length+")", todo, "todo");
-  h+=section("En cours ("+doing.length+")", doing, "doing");
-  h+=section("Fait ("+done.length+")", done, "done");
+  var h='<div class="card"><input id="t-title" class="field" placeholder="Nouvelle tâche (ex. monter la vidéo du vendredi)"><input id="t-note" class="field" placeholder="Note (optionnel)"><label class="lab">Pour qui ?</label><select id="t-assignee" class="field">'+opts+'</select><button class="btn block" data-action="add-task">Ajouter la tâche</button></div>';
+  var todo=state.tasks.filter(function(t){return !t.done&&!t.assignee;}), doing=state.tasks.filter(function(t){return !t.done&&t.assignee;}), done=state.tasks.filter(function(t){return t.done;});
+  h+=tsec("À prendre ("+todo.length+")",todo,"todo")+tsec("En cours ("+doing.length+")",doing,"doing")+tsec("Fait ("+done.length+")",done,"done");
   return h;
 }
-function section(title,list,kind){
+function tsec(title,list,kind){
   var h='<h2 class="sec">'+title+'</h2>';
-  if(!list.length) return h+'<p class="tiny muted" style="margin:0 4px 4px">—</p>';
+  if(!list.length)return h+'<p class="tiny muted" style="margin:0 4px 4px">—</p>';
   h+='<div class="grid">';
   list.forEach(function(t,i){
-    var col="var(--p"+((i%6)+1)+")";
-    var who=t.assignee?'<span class="who">'+esc(t.assignee)+(t.assignee===state.me?" · toi":"")+'</span>':'';
-    var acts="";
-    if(kind==="todo"){
-      acts='<button class="pact pri" data-action="take" data-id="'+t.id+'">Je prends</button>'+
-           '<button class="pact" data-action="done" data-id="'+t.id+'">Fait ✓</button>';
-    } else if(kind==="doing"){
-      acts='<button class="pact pri" data-action="done" data-id="'+t.id+'">Fait ✓</button>'+
-           (t.assignee===state.me?'<button class="pact" data-action="drop" data-id="'+t.id+'">Lâcher</button>':'<button class="pact" data-action="take" data-id="'+t.id+'">Reprendre</button>');
-    } else {
-      who=t.done_by?'<span class="who">par '+esc(t.done_by)+'</span>':who;
-      acts='<button class="pact" data-action="reopen" data-id="'+t.id+'">Rouvrir</button>'+
-           '<button class="pact" data-action="del" data-id="'+t.id+'">Suppr</button>';
-    }
-    h+='<div class="postit'+(t.done?" done":"")+'" style="background:'+col+'">'+
-        '<div class="pt">'+esc(t.title)+'</div>'+
-        (t.note?'<div class="pn">'+esc(t.note)+'</div>':'')+
-        who+
-        '<div class="pacts">'+acts+'</div>'+
-      '</div>';
+    var col="var(--p"+((i%6)+1)+")", who=t.assignee?'<span class="who">'+esc(t.assignee)+(t.assignee===state.me?" · toi":"")+'</span>':"", acts="";
+    if(kind==="todo")acts='<button class="pact pri" data-action="take" data-id="'+t.id+'">Je prends</button><button class="pact" data-action="done" data-id="'+t.id+'">Fait ✓</button>';
+    else if(kind==="doing")acts='<button class="pact pri" data-action="done" data-id="'+t.id+'">Fait ✓</button>'+(t.assignee===state.me?'<button class="pact" data-action="drop" data-id="'+t.id+'">Lâcher</button>':'<button class="pact" data-action="take" data-id="'+t.id+'">Reprendre</button>');
+    else {who=t.done_by?'<span class="who">par '+esc(t.done_by)+'</span>':who;acts='<button class="pact" data-action="reopen" data-id="'+t.id+'">Rouvrir</button><button class="pact" data-action="del" data-id="'+t.id+'">Suppr</button>';}
+    h+='<div class="postit'+(t.done?" done":"")+'" style="background:'+col+'"><div class="pt">'+esc(t.title)+'</div>'+(t.note?'<div class="pn">'+esc(t.note)+'</div>':"")+who+'<div class="pacts">'+acts+'</div></div>';
   });
-  h+='</div>';
+  return h+'</div>';
+}
+
+function viewIdeas(){
+  if(!state.ready)return loading();
+  var h='<div class="card"><div class="ttl" style="margin-bottom:4px">Nouvelle idée</div>'+
+    '<textarea id="i-text" class="field" placeholder="Ton idée…"></textarea>'+
+    '<div class="seg" id="i-kind-seg"><button data-action="iseg" data-k="idee" class="on">💡 Idée</button><button data-action="iseg" data-k="amelioration">🛠️ Amélioration</button></div>'+
+    '<button class="btn block" data-action="add-idea">Proposer</button></div>';
+  h+='<div class="toolbar">'+itab("all","Toutes")+itab("idee","💡 Idées")+itab("amelioration","🛠️ Améliorations")+'</div>';
+  var list=state.ideas.filter(function(i){return state.ideaFilter==="all"||i.kind===state.ideaFilter;});
+  if(!list.length){ h+='<div class="empty">Aucune idée — lance-toi !</div>'; return h; }
+  list.forEach(function(i){
+    h+='<div class="idea'+(i.kind==="amelioration"?" amel":"")+'"><div class="row"><span class="pill '+(i.kind==="amelioration"?"info":"")+'">'+(i.kind==="amelioration"?"🛠️ Amélioration":"💡 Idée")+'</span><div class="grow"></div>'+(i.status!=="nouvelle"?'<span class="tiny muted">'+esc(i.status)+'</span>':"")+'</div>'+
+      '<div style="margin:8px 0;word-break:break-word">'+esc(i.text)+'</div>'+
+      '<div class="row tiny muted">'+esc(i.author||"")+'<div class="grow"></div>'+
+        '<button class="copybtn" data-action="idea-task" data-id="'+i.id+'">→ Tâche</button>'+
+        '<button class="copybtn" data-action="idea-done" data-id="'+i.id+'">Faite</button>'+
+        '<button class="copybtn" data-action="del-idea" data-id="'+i.id+'">✕</button></div></div>';
+  });
+  return h;
+}
+function itab(id,label){return '<button class="tab2'+(state.ideaFilter===id?" on":"")+'" data-action="ifilter" data-f="'+id+'">'+label+'</button>';}
+
+function viewDuties(){
+  if(!state.ready)return loading();
+  var tdy=today();
+  var h='<button class="back" data-action="go" data-view="point">← Le point</button><h2 class="sec">Mes devoirs — '+esc(state.me)+'</h2>';
+  if(!state.duties.length)h+='<div class="empty">Aucun devoir.</div>';
+  state.duties.forEach(function(d){
+    var perDay=d.cadence==="per_day", cur=perDay?countOn(state.me,d.id,tdy):weekSum(state.me,d.id), tg=d.target||1, done=cur>=tg, frac=Math.min(1,cur/tg);
+    h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">'+esc(d.label)+'</div><div class="tiny muted">'+(perDay?"Chaque jour":"Chaque semaine")+' · objectif '+tg+'</div></div><div class="counter"><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="-1">−</button><div class="cval">'+cur+'</div><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="background:var(--accent);color:#fff">+</button></div></div><div class="pbar"><i style="width:'+(frac*100)+'%"></i></div>'+(done?'<div class="done-badge" style="margin-top:8px">✓ Objectif atteint</div>':'<div class="tiny muted" style="margin-top:8px">'+(perDay?"Aujourd\'hui":"Cette semaine")+' : '+cur+' / '+tg+'</div>')+'</div>';
+  });
   return h;
 }
 
-/* ----- Réglages ----- */
 function viewSettings(){
   var dark=document.documentElement.getAttribute("data-theme")==="dark";
-  var h='<h2 class="sec">Réglages</h2>';
-  h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">Code de groupe</div><div class="tiny muted">Partage-le aux frères pour qu\'ils rejoignent.</div></div>'+
-     '<span class="pill" style="font-size:16px">'+esc(state.code)+'</span></div></div>';
-  h+='<div class="card" style="margin-top:12px"><div class="row"><div class="grow"><div class="ttl">Moi</div><div class="tiny muted">'+esc(state.me)+'</div></div>'+
-     '<button class="btn ghost sm" data-action="switch-me">Changer</button></div></div>';
-
-  h+='<h2 class="sec">Thème</h2><div class="card"><div class="row"><div class="grow">Mode sombre</div>'+
-     '<button class="btn ghost sm" data-action="theme">'+(dark?"Désactiver":"Activer")+'</button></div></div>';
-
+  var h='<button class="back" data-action="go" data-view="point">← Le point</button><h2 class="sec">Réglages</h2>';
+  h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">Code de groupe</div><div class="tiny muted">Partage-le aux frères.</div></div><span class="pill" style="font-size:16px">'+esc(state.code)+'</span></div></div>';
+  h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">Moi</div><div class="tiny muted">'+esc(state.me)+'</div></div><button class="btn ghost sm" data-action="switch-me">Changer</button></div></div>';
+  h+='<div class="card"><div class="row"><div class="grow">Mode sombre</div><button class="btn ghost sm" data-action="theme">'+(dark?"Désactiver":"Activer")+'</button></div></div>';
   h+='<h2 class="sec">Frères ('+state.members.length+')</h2><div class="card">';
   h+=state.members.map(function(m){return '<div class="row" style="padding:5px 0"><div class="avatar" style="width:30px;height:30px;font-size:14px;background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div>';}).join("");
   h+='<div class="row" style="margin-top:8px"><input id="m-name" class="field" style="margin:0" placeholder="Ajouter un frère"><button class="btn sm" data-action="add-member">+</button></div></div>';
-
   h+='<h2 class="sec">Devoirs récurrents</h2><div class="card">';
   h+=state.duties.map(function(d){return '<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+'</div><span class="pill">'+(d.cadence==="per_day"?"jour":"sem")+' ×'+(d.target||1)+'</span></div>';}).join("");
-  h+='<label class="lab">Nouveau devoir</label>'+
-     '<input id="d-label" class="field" placeholder="Libellé (ex. Lire 1 page)">'+
-     '<div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select>'+
-     '<input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1" inputmode="numeric"></div>'+
-     '<button class="btn sm" data-action="add-duty" style="width:100%;margin-top:8px">Ajouter le devoir</button></div>';
-
-  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div>';
-  h+='<p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v1</p>';
+  h+='<label class="lab">Nouveau devoir</label><input id="d-label" class="field" placeholder="Libellé"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter le devoir</button></div>';
+  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v2</p>';
   return h;
 }
 
-function loading(){return '<div class="empty fade">Synchronisation…</div>';}
-
-/* ----- Onboarding ----- */
 function renderOnboard(){
-  var h='<div class="onb fade">';
-  h+='<div class="logo" style="width:46px;height:46px;border-radius:14px;margin-bottom:6px">'+IC.logo+'</div>';
+  var h='<div class="onb fade"><div class="logo" style="width:46px;height:46px;border-radius:14px;margin-bottom:6px">'+IC.logo+'</div>';
   if(state.onbStep==="code"){
-    h+='<div class="big">Rejoindre l\'équipe</div>';
-    h+='<p class="muted">Entre le <b>code de groupe</b> partagé entre les 7 frères. Vous le choisissez ensemble (ex. un mot ou 4 chiffres).</p>';
-    h+='<input id="ob-code" class="field" placeholder="Code de groupe" value="'+esc(state.onbCode)+'" autocomplete="off" autocapitalize="off">';
-    h+='<button class="btn" data-action="code-next" style="width:100%;margin-top:6px">Continuer</button>';
+    h+='<div class="big">Rejoindre l\'équipe</div><p class="muted">Entre le <b>code de groupe</b> partagé entre les 7 frères (un mot ou 4 chiffres, choisis ensemble).</p>'+
+      '<input id="ob-code" class="field" placeholder="Code de groupe" value="'+esc(state.onbCode)+'" autocomplete="off" autocapitalize="off">'+
+      '<button class="btn block" data-action="code-next">Continuer</button>';
   } else {
-    h+='<div class="big">Qui es-tu ?</div>';
-    h+='<p class="muted">Groupe <b>'+esc(state.onbCode)+'</b>. Choisis ton prénom.</p>';
-    var list = (state.onbNames && state.onbNames.length)? state.onbNames : DEFAULT_MEMBERS;
-    h+='<div class="names">';
-    h+=list.map(function(n){return '<button class="namebtn" data-action="pick-name" data-name="'+esc(n)+'"><span class="av" style="background:'+avColor(n)+'">'+esc(initials(n))+'</span>'+esc(n)+'</button>';}).join("");
-    h+='</div>';
-    h+='<label class="lab">Autre prénom</label>';
-    h+='<div class="row"><input id="ob-name" class="field" style="margin:0" placeholder="Ton prénom"><button class="btn" data-action="pick-custom">OK</button></div>';
+    h+='<div class="big">Qui es-tu ?</div><p class="muted">Groupe <b>'+esc(state.onbCode)+'</b>. Choisis ton prénom.</p>';
+    var list=(state.onbNames&&state.onbNames.length)?state.onbNames:DEFAULT_MEMBERS;
+    h+='<div class="names">'+list.map(function(n){return '<button class="namebtn" data-action="pick-name" data-name="'+esc(n)+'"><span class="av" style="background:'+avColor(n)+'">'+esc(initials(n))+'</span>'+esc(n)+'</button>';}).join("")+'</div>';
+    h+='<label class="lab">Autre prénom</label><div class="row"><input id="ob-name" class="field" style="margin:0" placeholder="Ton prénom"><button class="btn" data-action="pick-custom">OK</button></div>';
     h+='<button class="btn ghost sm" data-action="back-code" style="margin-top:12px">← Changer de code</button>';
   }
-  h+='</div>';
-  app.innerHTML=h;
+  app.innerHTML=h+'</div>';
 }
 
-/* ---------- Actions ---------- */
 function val(id){var e=document.getElementById(id);return e?e.value:"";}
-
-document.addEventListener("click", function(ev){
+document.addEventListener("click",function(ev){
   var el=ev.target.closest("[data-action],[data-nav]"); if(!el)return;
-  var nav=el.getAttribute("data-nav");
-  if(nav){ state.view=nav; render(); return; }
+  var navv=el.getAttribute("data-nav");
+  if(navv){ state.view=navv; state.videoId=null; render(); return; }
   var a=el.getAttribute("data-action");
-  try{ handle(a, el); }catch(e){ console.error(e); }
+  try{ handle(a,el); }catch(e){ console.error(e); }
 });
-
-async function handle(a, el){
+async function handle(a,el){
   if(a==="theme"){ toggleTheme(); render(); return; }
   if(a==="retry"){ state.error=""; render(); start(); return; }
+  if(a==="go"){ state.view=el.getAttribute("data-view"); state.videoId=null; state.sheet=false; render(); return; }
+  if(a==="sheet-close"){ state.sheet=false; render(); return; }
 
-  // onboarding
   if(a==="code-next"){ var c=val("ob-code").trim(); if(!c)return; state.onbCode=c; await loadNames(c); state.onbStep="name"; renderOnboard(); return; }
   if(a==="back-code"){ state.onbStep="code"; renderOnboard(); return; }
   if(a==="pick-name"){ joinAs(el.getAttribute("data-name")); return; }
   if(a==="pick-custom"){ var n=val("ob-name").trim(); if(n)joinAs(n); return; }
 
-  // duties
-  if(a==="bump"){ bumpDuty(parseInt(el.getAttribute("data-duty"),10), parseInt(el.getAttribute("data-delta"),10)); return; }
+  if(a==="bump"){ bumpDuty(parseInt(el.getAttribute("data-duty"),10),parseInt(el.getAttribute("data-delta"),10)); return; }
 
-  // tasks
   if(a==="add-task"){ addTask(val("t-title"),val("t-note"),val("t-assignee")); return; }
   if(a==="take"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{assignee:state.me}); return; }
   if(a==="drop"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{assignee:null}); return; }
@@ -550,66 +618,51 @@ async function handle(a, el){
   if(a==="reopen"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{done:false,done_by:null}); return; }
   if(a==="del"){ taskDelete(parseInt(el.getAttribute("data-id"),10)); return; }
 
-  // settings
+  if(a==="vfilter"){ state.videoFilter=el.getAttribute("data-f"); render(); return; }
+  if(a==="add-video"){ addVideo(val("v-title"),val("v-topic"),val("v-kind"),val("v-url"),val("v-platform")); return; }
+  if(a==="open-video"){ state.videoId=parseInt(el.getAttribute("data-id"),10); state.view="videoDetail"; render(); return; }
+  if(a==="del-video"){ delVideo(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="repost"){ toggleRepost(parseInt(el.getAttribute("data-video"),10),el.getAttribute("data-plat")); return; }
+
+  if(a==="add-arg"){ addArgument(val("a-topic"),val("a-title"),val("a-body"),val("a-ref"),null); return; }
+  if(a==="add-arg-video"){ addArgument(val("va-topic"),val("va-title"),val("va-body"),val("va-ref"),parseInt(el.getAttribute("data-video"),10)); return; }
+  if(a==="del-arg"){ delArgument(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="copy-arg"){ var ar=state.args.find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); if(ar){copyText(ar.body||"");el.textContent="Copié ✓";} return; }
+
+  if(a==="add-recit"){ addRecit(val("r-label"),parseInt(val("r-surah"),10)||null,parseInt(val("r-ayah"),10)||null); return; }
+  if(a==="recit-toggle"){ toggleRecit(parseInt(el.getAttribute("data-id"),10),el.getAttribute("data-done")==="1"); return; }
+  if(a==="del-recit"){ delRecit(parseInt(el.getAttribute("data-id"),10)); return; }
+
+  if(a==="iseg"){ var seg=document.getElementById("i-kind-seg"); if(seg){[].forEach.call(seg.children,function(b){b.classList.remove("on");}); el.classList.add("on");} return; }
+  if(a==="ifilter"){ state.ideaFilter=el.getAttribute("data-f"); render(); return; }
+  if(a==="add-idea"){ var seg2=document.getElementById("i-kind-seg"); var on=seg2&&seg2.querySelector(".on"); var k=on?on.getAttribute("data-k"):"idee"; addIdea(val("i-text"),k); return; }
+  if(a==="idea-task"){ var id1=parseInt(el.getAttribute("data-id"),10); var idea=state.ideas.find(function(x){return x.id===id1;}); if(idea)ideaToTask(idea); return; }
+  if(a==="idea-done"){ setIdea(parseInt(el.getAttribute("data-id"),10),"faite"); return; }
+  if(a==="del-idea"){ delIdea(parseInt(el.getAttribute("data-id"),10)); return; }
+
   if(a==="add-member"){ addMember(val("m-name")); return; }
   if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1); return; }
-  if(a==="switch-me"){ state.me=""; ldel("team:me"); render(); renderOnboard&&renderOnboard(); state.onbStep="name"; state.onbCode=state.code; await loadNames(state.code); renderOnboard(); return; }
+  if(a==="switch-me"){ state.me=""; ldel("team:me"); state.onbStep="name"; state.onbCode=state.code; await loadNames(state.code); renderOnboard(); return; }
   if(a==="logout"){ ldel("team:me"); ldel("team:code"); state.me=""; state.code=""; state.ready=false; state.onbStep="code"; render(); return; }
 }
+document.addEventListener("input",function(ev){ if(ev.target&&ev.target.id==="a-search"){ state.argQuery=ev.target.value; var pos=ev.target.selectionStart; render(); var nb=document.getElementById("a-search"); if(nb){nb.focus(); try{nb.setSelectionRange(pos,pos);}catch(e){}} } });
 
-async function loadNames(code){
-  try{ var r=await membersFor(code); state.onbNames=(r.data||[]).map(function(m){return m.name;}); }
-  catch(e){ state.onbNames=null; }
-}
-async function joinAs(name){
-  state.code=state.onbCode||state.code; state.me=name;
-  lset("team:code",state.code); lset("team:me",name);
-  render(); // show app shell / loading
-  start();
-}
+async function loadNames(code){ try{var r=await membersFor(code); state.onbNames=(r.data||[]).map(function(m){return m.name;});}catch(e){state.onbNames=null;} }
+async function joinAs(name){ state.code=state.onbCode||state.code; state.me=name; lset("team:code",state.code); lset("team:me",name); render(); start(); }
 
-/* ---------- Theme ---------- */
-function toggleTheme(){
-  var d=document.documentElement.getAttribute("data-theme")==="dark";
-  setTheme(d?"light":"dark");
-}
-function setTheme(t){
-  document.documentElement.setAttribute("data-theme",t);
-  lset("team:theme",t);
-  var m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute("content", t==="dark"?"#15120E":"#E0795F");
-}
+function toggleTheme(){ var d=document.documentElement.getAttribute("data-theme")==="dark"; setTheme(d?"light":"dark"); }
+function setTheme(t){ document.documentElement.setAttribute("data-theme",t); lset("team:theme",t); var m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute("content",t==="dark"?"#15120E":"#E0795F"); }
 
-/* ---------- Start ---------- */
-async function start(){
-  if(!state.code||!state.me)return;
-  try{
-    client();
-    await ensureGroup(state.code);
-    await refreshAll();
-    subscribe();
-  }catch(e){
-    console.error(e);
-    state.error = (e&&e.message)||"connexion impossible";
-    render();
-  }
-}
-
+async function start(){ if(!state.code||!state.me)return; try{ client(); await ensureGroup(state.code); await refreshAll(); subscribe(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
 function init(){
-  setTheme(lget("team:theme", (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"));
-  if(state.code && state.me){ state.onbStep="name"; render(); start(); }
+  setTheme(lget("team:theme",(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"));
+  if(state.code&&state.me){ state.onbStep="name"; render(); start(); }
   else { state.onbStep="code"; state.onbCode=state.code||""; renderOnboard(); }
-  // refresh on focus / when day changes
-  document.addEventListener("visibilitychange", function(){ if(!document.hidden && state.code && state.me) debRefresh(); });
+  document.addEventListener("visibilitychange",function(){ if(!document.hidden&&state.code&&state.me)debRefresh(); });
 }
-
-if(window.supabase || document.readyState!=="loading"){ ready(); }
-else { window.addEventListener("DOMContentLoaded", ready); }
+if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-
-// expose for tests
-window.__APP__ = {state:state, render:render, handle:handle, ymd:ymd, weekStart:weekStart};
-
-/* ---------- Service worker ---------- */
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>
