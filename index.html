@@ -171,17 +171,8 @@ var DEFAULT_DUTIES = [
   {label:"Réciter (3×/sem)",  cadence:"per_week", target:3, sort:3},
   {label:"Point hebdo équipe", cadence:"per_week", target:1, sort:4}
 ];
-var DEFAULT_RECITS = [
-  {label:"Sourate Al-Fâtiha", surah:1, sort:1},
-  {label:"Ayat al-Kursî (2:255)", surah:2, ayah:255, sort:2},
-  {label:"Fin de Al-Baqara (2:285-286)", surah:2, ayah:285, sort:3},
-  {label:"Sourate Al-Kahf", surah:18, sort:4},
-  {label:"Sourate Yâ-Sîn", surah:36, sort:5},
-  {label:"Sourate Ar-Rahmân", surah:55, sort:6},
-  {label:"Sourate Al-Wâqi'a", surah:56, sort:7},
-  {label:"Sourate Al-Mulk", surah:67, sort:8},
-  {label:"Les 3 Qul (112-114)", surah:112, sort:9}
-];
+var SURAHS=["Al-Fâtiha", "Al-Baqara", "Âl-Imrân", "An-Nisâ'", "Al-Mâ'ida", "Al-An'âm", "Al-A'râf", "Al-Anfâl", "At-Tawba", "Yûnus", "Hûd", "Yûsuf", "Ar-Ra'd", "Ibrâhîm", "Al-Hijr", "An-Nahl", "Al-Isrâ'", "Al-Kahf", "Maryam", "Tâ-Hâ", "Al-Anbiyâ'", "Al-Hajj", "Al-Mu'minûn", "An-Nûr", "Al-Furqân", "Ash-Shu'arâ'", "An-Naml", "Al-Qasas", "Al-Ankabût", "Ar-Rûm", "Luqmân", "As-Sajda", "Al-Ahzâb", "Saba'", "Fâtir", "Yâ-Sîn", "As-Sâffât", "Sâd", "Az-Zumar", "Ghâfir", "Fussilat", "Ash-Shûrâ", "Az-Zukhruf", "Ad-Dukhân", "Al-Jâthiya", "Al-Ahqâf", "Muhammad", "Al-Fath", "Al-Hujurât", "Qâf", "Adh-Dhâriyât", "At-Tûr", "An-Najm", "Al-Qamar", "Ar-Rahmân", "Al-Wâqi'a", "Al-Hadîd", "Al-Mujâdila", "Al-Hashr", "Al-Mumtahana", "As-Saff", "Al-Jumu'a", "Al-Munâfiqûn", "At-Taghâbun", "At-Talâq", "At-Tahrîm", "Al-Mulk", "Al-Qalam", "Al-Hâqqa", "Al-Ma'ârij", "Nûh", "Al-Jinn", "Al-Muzzammil", "Al-Muddaththir", "Al-Qiyâma", "Al-Insân", "Al-Mursalât", "An-Naba'", "An-Nâzi'ât", "Abasa", "At-Takwîr", "Al-Infitâr", "Al-Mutaffifîn", "Al-Inshiqâq", "Al-Burûj", "At-Târiq", "Al-A'lâ", "Al-Ghâshiya", "Al-Fajr", "Al-Balad", "Ash-Shams", "Al-Layl", "Ad-Duhâ", "Ash-Sharh", "At-Tîn", "Al-Alaq", "Al-Qadr", "Al-Bayyina", "Az-Zalzala", "Al-Âdiyât", "Al-Qâri'a", "At-Takâthur", "Al-Asr", "Al-Humaza", "Al-Fîl", "Quraysh", "Al-Mâ'ûn", "Al-Kawthar", "Al-Kâfirûn", "An-Nasr", "Al-Masad", "Al-Ikhlâs", "Al-Falaq", "An-Nâs"];
+var DEFAULT_RECITS=[{s:1},{s:2,a:1,a2:7},{s:2,a:26,a2:30},{s:2,a:40,a2:41},{s:2,a:49,a2:53},{s:2,a:87,a2:89},{s:2,a:113},{s:2,a:131,a2:134},{s:2,a:214,a2:217},{s:2,a:221},{s:2,a:261,a2:264},{s:2,a:284,a2:286},{s:3,a:1,a2:4},{s:3,a:48,a2:51},{s:3,a:79,a2:80},{s:3,a:81},{s:3,a:84,a2:88},{s:3,a:192,a2:194},{s:3,a:199,a2:200},{s:4,a:60},{s:5,a:12},{s:5,a:17},{s:5,a:82,a2:85},{s:6,a:27,a2:30},{s:6,a:48,a2:49},{s:6,a:50,a2:56},{s:6,a:75,a2:81},{s:6,a:162,a2:165},{s:7,a:1,a2:5},{s:7,a:35},{s:9,a:67,a2:68},{s:9,a:71,a2:72},{s:10,a:22,a2:23},{s:11,a:26,a2:29},{s:11,a:110,a2:112},{s:12,a:105,a2:107},{s:13,a:1,a2:3},{s:13,a:35,a2:37},{s:14,a:1,a2:5},{s:16,a:1,a2:3},{s:16,a:33,a2:34},{s:16,a:112,a2:115},{s:17,a:78,a2:82},{s:17,a:105,a2:109},{s:18,a:1,a2:8},{s:18,a:9,a2:27},{s:18,a:28,a2:31},{s:18,a:32,a2:43},{s:18,a:53,a2:63},{s:19,a:1,a2:9},{s:19,a:16,a2:40},{s:19,a:65,a2:68},{s:19,a:76,a2:80},{s:19,a:88,a2:96},{s:20,a:1,a2:8},{s:20,a:124,a2:128},{s:21,a:30,a2:35},{s:21,a:87,a2:93},{s:22,a:73,a2:78},{s:24,a:1,a2:2},{s:24,a:35},{s:24,a:46,a2:51},{s:25,a:1,a2:6},{s:25,a:61,a2:70},{s:26,a:1,a2:9},{s:26,a:10,a2:21},{s:27,a:1,a2:5},{s:28,a:1,a2:13},{s:29,a:1,a2:9},{s:30,a:1,a2:6},{s:30,a:14,a2:19},{s:30,a:58,a2:60},{s:31,a:1,a2:7},{s:32,a:1,a2:4},{s:32,a:10,a2:12},{s:33,a:35},{s:34,a:31,a2:33},{s:35,a:1,a2:13},{s:35,a:18,a2:22},{s:37},{s:38,a:12,a2:16},{s:38,a:30,a2:33},{s:38,a:71,a2:77},{s:39,a:1,a2:4},{s:39,a:53,a2:55},{s:40,a:1,a2:3},{s:40,a:7,a2:8},{s:40,a:59,a2:61},{s:41,a:1,a2:9},{s:43,a:10,a2:13},{s:43,a:63,a2:67},{s:43,a:68,a2:73},{s:44,a:1,a2:13},{s:45,a:1,a2:5},{s:45,a:16,a2:18},{s:45,a:26,a2:28},{s:46,a:12,a2:14},{s:47,a:1,a2:3},{s:48,a:1,a2:4},{s:50,a:1,a2:7},{s:50,a:16,a2:31},{s:51,a:5,a2:16},{s:52,a:1,a2:16},{s:52,a:36,a2:43},{s:53,a:1,a2:18},{s:53,a:57,a2:62},{s:55,a:1,a2:23},{s:56,a:41,a2:51},{s:56,a:57,a2:67},{s:57,a:1,a2:4},{s:57,a:16,a2:19},{s:57,a:20},{s:59,a:18,a2:21},{s:59,a:22,a2:24},{s:60,a:1},{s:61,a:10,a2:14},{s:63,a:1,a2:3},{s:64,a:1,a2:6},{s:66,a:6,a2:8},{s:67,a:1,a2:6},{s:68,a:1,a2:11},{s:68,a:34,a2:41},{s:69,a:25,a2:36},{s:71,a:5,a2:10},{s:72,a:1,a2:4},{s:74,a:1,a2:16},{s:74,a:30,a2:31},{s:74,a:38,a2:49},{s:74,a:49,a2:56},{s:75,a:1,a2:13},{s:75,a:16,a2:35},{s:75,a:36,a2:40},{s:76,a:1,a2:11},{s:78,a:6,a2:17},{s:80,a:33,a2:42},{s:81,a:1,a2:22},{s:82,a:9,a2:19},{s:83,a:10,a2:16},{s:84,a:16,a2:24},{s:85,a:10,a2:16},{s:87},{s:88,a:8,a2:22},{s:89,a:1,a2:14},{s:89,a:15,a2:20},{s:90},{s:91},{s:92},{s:93},{s:94},{s:95},{s:97},{s:98},{s:99},{s:100},{s:101},{s:102,a:1,a2:6},{s:103},{s:104},{s:105},{s:106},{s:107},{s:108},{s:109},{s:110},{s:111},{s:112},{s:113},{s:114}];
 var PLATFORMS = ["YouTube","TikTok","Snap","Instagram","Facebook","X","WhatsApp","Telegram"];
 var KIND_LABEL = {appel:"📣 L'appel (à reposter)", mensongere:"⚠️ Mensongère (à répondre)", autre:"Autre"};
 var AV_COLORS = ["#E0795F","#5B8DEF","#4F9D69","#C46BB0","#E0A23C","#3FB0C9","#9B6BD6"];
@@ -202,7 +193,9 @@ function avColor(name){var i=Math.max(0,DEFAULT_MEMBERS.indexOf(name));return AV
 function initials(name){return (name||"?").trim().charAt(0).toUpperCase();}
 function heat(frac){ if(frac<=0)return "var(--strip0)"; var h=8+frac*112; return "hsl("+h+" 58% 47%)"; }
 function debounce(fn,ms){var t;return function(){clearTimeout(t);t=setTimeout(fn,ms);};}
-function quranLink(s,a){ if(!s)return null; return "https://quran.com/"+s+(a?("/"+a):""); }
+function quranLink(s,a,a2){ if(!s)return null; var u="https://quran.com/"+s; if(a){u+="/"+a+(a2&&a2>a?("-"+a2):"");} return u; }
+function surahName(n){ return (n&&SURAHS[n-1])?SURAHS[n-1]:("Sourate "+n); }
+function recitLabel(x){ var nm=surahName(x.s); if(!x.a)return nm; return nm+" v."+x.a+(x.a2&&x.a2>x.a?("-"+x.a2):""); }
 var DOW=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"], MON=["jan","fév","mar","avr","mai","juin","juil","aoû","sep","oct","nov","déc"];
 function dateAdd(n){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d;}
 function week7(){var a=[];for(var i=0;i<7;i++)a.push(ymd(dateAdd(i)));return a;}
@@ -243,7 +236,7 @@ async function ensureGroup(code){
     await c.from("team_duties").upsert(DEFAULT_DUTIES.map(function(x){return {code:code,label:x.label,cadence:x.cadence,target:x.target,sort:x.sort};}),{onConflict:"code,label",ignoreDuplicates:true});
   var r=await c.from("team_recitations").select("id").eq("code",code);
   if(!r.error && (!r.data||r.data.length===0))
-    await c.from("team_recitations").upsert(DEFAULT_RECITS.map(function(x){return {code:code,label:x.label,surah:x.surah,ayah:x.ayah||null,sort:x.sort};}),{onConflict:"code,label",ignoreDuplicates:true});
+    await c.from("team_recitations").upsert(DEFAULT_RECITS.map(function(x,i){return {code:code,label:recitLabel(x),surah:x.s,ayah:x.a||null,ayah_end:x.a2||null,sort:i};}),{onConflict:"code,label",ignoreDuplicates:true});
 }
 
 async function refreshAll(){
@@ -302,7 +295,7 @@ async function toggleRepost(videoId,platform){
 }
 async function addArgument(topic,title,body,ref,videoId){ if(!title.trim())return; await client().from("team_arguments").insert({code:state.code,topic:(topic||"").trim()||null,title:title.trim(),body:(body||"").trim()||null,ref:(ref||"").trim()||null,video_id:videoId||null,added_by:state.me}); await refreshAll(); }
 async function delArgument(id){ await client().from("team_arguments").delete().eq("id",id); await refreshAll(); }
-async function addRecit(label,surah,ayah){ label=(label||"").trim(); if(!label)return; var s=state.recits.reduce(function(m,r){return Math.max(m,r.sort||0);},0)+1; await client().from("team_recitations").upsert({code:state.code,label:label,surah:surah||null,ayah:ayah||null,sort:s},{onConflict:"code,label",ignoreDuplicates:true}); await refreshAll(); }
+async function addRecit(surah,ayah,ayah_end){ surah=surah||null; if(!surah)return; var lbl=recitLabel({s:surah,a:ayah||null,a2:ayah_end||null}); var s=state.recits.reduce(function(m,r){return Math.max(m,r.sort||0);},0)+1; await client().from("team_recitations").upsert({code:state.code,label:lbl,surah:surah,ayah:ayah||null,ayah_end:ayah_end||null,sort:s},{onConflict:"code,label",ignoreDuplicates:true}); await refreshAll(); }
 async function toggleRecit(id,done){ await client().from("team_recitations").update({done:done,done_by:done?state.me:null}).eq("id",id); await refreshAll(); }
 async function delRecit(id){ await client().from("team_recitations").delete().eq("id",id); await refreshAll(); }
 async function addIdea(text,kind){ if(!text.trim())return; await client().from("team_ideas").insert({code:state.code,text:text.trim(),kind:kind||"idee",author:state.me}); await refreshAll(); }
@@ -516,23 +509,35 @@ function viewArguments(){
 function viewRecits(){
   if(!state.ready)return loading();
   var done=state.recits.filter(function(r){return r.done;}), left=state.recits.filter(function(r){return !r.done;});
-  var h='<div class="card"><div class="row"><div class="grow"><div class="ttl">Récitations</div><div class="tiny muted">Coche ce qui est fait, ouvre le verset sur quran.com.</div></div><span class="pill '+(left.length?"warn":"on")+'">'+done.length+'/'+state.recits.length+'</span></div>'+
-    '<div class="pbar" style="margin-top:10px"><i style="width:'+(state.recits.length?Math.round(done.length/state.recits.length*100):0)+'%"></i></div></div>';
-  h+='<h2 class="sec">À réciter ('+left.length+')</h2><div class="card">';
-  if(!left.length) h+='<div class="muted small center">Tout est fait, maa shaa Allah ✓</div>';
-  left.forEach(function(r){ h+=recitRow(r); });
-  h+='</div>';
-  if(done.length){ h+='<h2 class="sec">Faites ('+done.length+')</h2><div class="card">'; done.forEach(function(r){ h+=recitRow(r); }); h+='</div>'; }
-  h+='<h2 class="sec">Ajouter une récitation</h2><div class="card">'+
-    '<input id="r-label" class="field" placeholder="Libellé (ex. Sourate An-Nâs)">'+
-    '<div class="row"><input id="r-surah" class="field" style="margin:0" type="number" min="1" max="114" inputmode="numeric" placeholder="N° sourate (1-114)"><input id="r-ayah" class="field" style="margin:0;width:42%" type="number" min="1" inputmode="numeric" placeholder="Verset (option)"></div>'+
+  var h='<div class="card"><div class="row"><div class="grow"><div class="ttl">Récitations</div><div class="tiny muted">Coche ce qui est fait, ouvre le passage sur quran.com.</div></div><span class="pill '+(left.length?"warn":"on")+'">'+done.length+'/'+state.recits.length+'</span></div><div class="pbar" style="margin-top:10px"><i style="width:'+(state.recits.length?Math.round(done.length/state.recits.length*100):0)+'%"></i></div></div>';
+  h+='<div class="card"><div class="ttl" style="margin-bottom:4px">Ajouter une récitation</div>'+
+    '<label class="lab">Sourate</label><select id="r-surah" class="field">'+SURAHS.map(function(nm,i){return '<option value="'+(i+1)+'">'+(i+1)+'. '+esc(nm)+'</option>';}).join("")+'</select>'+
+    '<div class="row"><input id="r-ayah" class="field" style="margin:0" type="number" min="1" inputmode="numeric" placeholder="Du verset"><input id="r-ayah2" class="field" style="margin:0" type="number" min="1" inputmode="numeric" placeholder="Au verset"></div>'+
+    '<div class="tiny muted" style="margin:2px 2px 0">Laisse les versets vides pour la sourate entière.</div>'+
     '<button class="btn block" data-action="add-recit" style="margin-top:8px">Ajouter</button></div>';
+  h+=recitSection("À réciter",left,"Rien à réciter pour l'instant — ajoute un passage.");
+  h+=recitSection("Faites",done,"");
+  return h;
+}
+function recitSection(title,list,emptyMsg){
+  var h='<h2 class="sec">'+title+' ('+list.length+')</h2>';
+  if(!list.length) return h+'<div class="muted small" style="margin:0 4px 10px">'+(emptyMsg||"—")+'</div>';
+  var groups={}, order=[];
+  list.forEach(function(r){ var k=r.surah||0; if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(r); });
+  order.sort(function(a,b){return a-b;});
+  order.forEach(function(k){
+    h+='<div class="card" style="padding:9px 12px"><div class="tiny" style="font-weight:800;color:var(--accent);margin-bottom:3px">'+esc(surahName(k))+' · sourate '+k+'</div>';
+    groups[k].sort(function(a,b){return (a.ayah||0)-(b.ayah||0);});
+    groups[k].forEach(function(r){ h+=recitRow(r); });
+    h+='</div>';
+  });
   return h;
 }
 function recitRow(r){
-  var lnk=quranLink(r.surah,r.ayah);
+  var lnk=quranLink(r.surah,r.ayah,r.ayah_end);
+  var txt=r.ayah?("v. "+r.ayah+(r.ayah_end&&r.ayah_end>r.ayah?("–"+r.ayah_end):"")):"sourate entière";
   return '<div class="recit"><button class="check'+(r.done?" on":"")+'" data-action="recit-toggle" data-id="'+r.id+'" data-done="'+(r.done?0:1)+'">'+(r.done?"✓":"")+'</button>'+
-    '<div class="grow"><div class="ttl small">'+esc(r.label)+'</div>'+(r.done&&r.done_by?'<div class="tiny muted">par '+esc(r.done_by)+'</div>':"")+'</div>'+
+    '<div class="grow"><div class="small">'+esc(txt)+'</div></div>'+
     (lnk?'<a class="copybtn" href="'+esc(lnk)+'" target="_blank" rel="noopener">quran.com ↗</a>':"")+
     '<button class="copybtn" data-action="del-recit" data-id="'+r.id+'">✕</button></div>';
 }
@@ -697,7 +702,7 @@ async function handle(a,el){
   if(a==="del-arg"){ delArgument(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="copy-arg"){ var ar=state.args.find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); if(ar){copyText(ar.body||"");el.textContent="Copié ✓";} return; }
 
-  if(a==="add-recit"){ addRecit(val("r-label"),parseInt(val("r-surah"),10)||null,parseInt(val("r-ayah"),10)||null); return; }
+  if(a==="add-recit"){ addRecit(parseInt(val("r-surah"),10)||null,parseInt(val("r-ayah"),10)||null,parseInt(val("r-ayah2"),10)||null); return; }
   if(a==="recit-toggle"){ toggleRecit(parseInt(el.getAttribute("data-id"),10),el.getAttribute("data-done")==="1"); return; }
   if(a==="del-recit"){ delRecit(parseInt(el.getAttribute("data-id"),10)); return; }
 
@@ -730,7 +735,7 @@ function init(){
 }
 if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees};
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>
