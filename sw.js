@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v4 (push notifications app fermée) */
-const CACHE = "lappel-v4";
+/* L'Appel — Équipe · service worker (PWA) — v5 (push idée vs amélioration) */
+const CACHE = "lappel-v5";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
