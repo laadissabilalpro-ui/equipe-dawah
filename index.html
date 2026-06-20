@@ -186,6 +186,18 @@
   .ntitle{font-weight:800;font-size:14px}
   .nbody{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-word}
   .ntime{font-size:11px;color:var(--muted);margin-top:3px}
+  /* v6 — releases (Quoi de neuf) */
+  .relcard{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:14px;margin-bottom:12px;border-left:4px solid #C97AB5}
+  .relcard.draft{border-left-color:#E0A23C;background:linear-gradient(180deg,color-mix(in srgb,#E0A23C 7%,var(--card)),var(--card))}
+  .relcard .rtitle{font-weight:800;font-size:16px}
+  .relcard .rmeta{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .relcard .rbody{font-size:14px;margin-top:9px;white-space:pre-wrap;word-break:break-word}
+  .relcard .rideas{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+  .relcard .ridea{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--bg2);color:var(--muted);cursor:pointer}
+  .relcard .ridea:hover{background:color-mix(in srgb,var(--accent) 12%,var(--bg2))}
+  .relbadge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,#C97AB5 22%,transparent);color:#A04B8C;margin-top:6px;cursor:pointer}
+  [data-theme="dark"] .relbadge{color:#D9A2C9}
+  .draftprompt{background:linear-gradient(180deg,color-mix(in srgb,#E0A23C 10%,var(--card)),var(--card));border:1.5px solid color-mix(in srgb,#E0A23C 35%,transparent);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
   /* v4 — taille du SVG dans la carte de prompt push */
   .ttl svg{width:18px;height:18px;vertical-align:middle}
 </style>
@@ -262,6 +274,7 @@ var state = {
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
+  releases:[], releaseIdeas:[], releasesSeen:0, reviewReleaseId:null,
   ready:false, error:"", onbStep:"code", onbCode:"", onbNames:null
 };
 var sb=null, channel=null;
@@ -302,11 +315,14 @@ async function refreshAll(){
     c.from("team_recitations").select("*").eq("code",code).order("sort",{ascending:true}),
     c.from("team_ideas").select("*").eq("code",code).order("created_at",{ascending:false}),
     c.from("team_idea_votes").select("*").eq("code",code),
-    c.from("team_idea_comments").select("*").eq("code",code).order("created_at",{ascending:true})
+    c.from("team_idea_comments").select("*").eq("code",code).order("created_at",{ascending:true}),
+    c.from("team_releases").select("*").eq("code",code).order("created_at",{ascending:false}),
+    c.from("team_release_ideas").select("*").eq("code",code)
   ]);
   state.members=res[0].data||[]; state.duties=res[1].data||[]; state.logs=res[2].data||[]; state.tasks=res[3].data||[];
   state.videos=res[4].data||[]; state.reposts=res[5].data||[]; state.args=res[6].data||[]; state.recits=res[7].data||[]; state.ideas=res[8].data||[];
   state.votes=res[9].data||[]; state.comments=res[10].data||[];
+  state.releases=res[11].data||[]; state.releaseIdeas=res[12].data||[];
   state.ready=true; render();
 }
 var debRefresh = debounce(function(){ refreshAll().catch(function(e){console.warn(e);}); }, 260);
@@ -315,12 +331,13 @@ function subscribe(){
   var c=client();
   if(channel){ try{c.removeChannel(channel);}catch(e){} }
   var f="code=eq."+state.code;
-  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas","team_idea_votes","team_idea_comments"];
+  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas","team_idea_votes","team_idea_comments","team_releases","team_release_ideas"];
   channel=c.channel("team-"+state.code);
   tables.forEach(function(t){ channel.on("postgres_changes",{event:"*",schema:"public",table:t,filter:f},debRefresh); });
   // Toasts en direct sur nouvelles idées et nouveaux commentaires (pas par soi-même)
   channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_ideas",filter:f},function(p){ onLiveIdea(p&&p.new); });
   channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_idea_comments",filter:f},function(p){ onLiveComment(p&&p.new); });
+  channel.on("postgres_changes",{event:"UPDATE",schema:"public",table:"team_releases",filter:f},function(p){ onLiveReleasePublished(p&&p.new, p&&p.old); });
   channel.subscribe();
 }
 
@@ -473,6 +490,78 @@ function pushPromptCard(){
   '</div>';
 }
 
+
+/* ---------- Releases / Quoi de neuf (v6) ---------- */
+function isReleaseOwner(){ return state.me === "Bilal"; }
+function publishedReleases(){ return state.releases.filter(function(r){return r.status==="published";}).sort(function(a,b){var ta=Date.parse(a.published_at||a.created_at)||0, tb=Date.parse(b.published_at||b.created_at)||0; return tb-ta;}); }
+function draftReleases(){ return state.releases.filter(function(r){return r.status==="draft";}).sort(function(a,b){return (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0);}); }
+function ideasForRelease(releaseId){ var ids={}; state.releaseIdeas.filter(function(l){return l.release_id===releaseId;}).forEach(function(l){ids[l.idea_id]=1;}); return state.ideas.filter(function(i){return ids[i.id];}); }
+function releaseForIdea(ideaId){ var l=state.releaseIdeas.find(function(x){return x.idea_id===ideaId;}); if(!l)return null; return state.releases.find(function(r){return r.id===l.release_id && r.status==="published";})||null; }
+function releasesKey(){ return "team:releases_seen:"+(state.code||""); }
+function loadReleasesSeen(){ var v=lget(releasesKey(),""); state.releasesSeen=v?(Date.parse(v)||0):0; }
+function markReleasesSeen(){ var iso=new Date().toISOString(); lset(releasesKey(),iso); state.releasesSeen=Date.parse(iso); }
+function unreadReleasesCount(){
+  var n=0;
+  publishedReleases().forEach(function(r){ var t=Date.parse(r.published_at||r.created_at)||0; if(t>state.releasesSeen && r.shipped_by!==state.me) n++; });
+  if(isReleaseOwner()) n += draftReleases().length;
+  return n;
+}
+async function updateDraft(id, patch){
+  if(!isReleaseOwner())return;
+  patch.updated_at = new Date().toISOString();
+  await client().from("team_releases").update(patch).eq("id",id);
+  await refreshAll();
+}
+async function deleteDraft(id){
+  if(!isReleaseOwner())return;
+  if(window.confirm && !window.confirm("Supprimer définitivement ce draft ?"))return;
+  await client().from("team_release_ideas").delete().eq("release_id",id);
+  await client().from("team_releases").delete().eq("id",id).eq("status","draft");
+  if(state.view==="releaseReview" && state.reviewReleaseId===id){ state.view="releases"; state.reviewReleaseId=null; }
+  await refreshAll();
+}
+async function setDraftIdeas(releaseId, ideaIds){
+  if(!isReleaseOwner())return;
+  var c=client(), code=state.code;
+  // remplace l'ensemble : delete puis insert
+  await c.from("team_release_ideas").delete().eq("release_id",releaseId);
+  if(ideaIds && ideaIds.length){
+    var rows = ideaIds.map(function(iid){ return {code:code, release_id:releaseId, idea_id:iid}; });
+    await c.from("team_release_ideas").insert(rows);
+  }
+  await refreshAll();
+}
+async function publishRelease(id){
+  if(!isReleaseOwner())return;
+  var rel = state.releases.find(function(r){return r.id===id;});
+  if(!rel)return;
+  if(rel.status==="published"){ alert("Déjà publiée."); return; }
+  if(!rel.title || !rel.title.trim()){ alert("Le titre est requis avant publication."); return; }
+  if(window.confirm){
+    var nSubs = "ce groupe"; // on n'a pas le compte exact, message générique
+    if(!window.confirm("Publier maintenant ? Les frères de "+nSubs+" recevront une notif push.")) return;
+  }
+  var c=client();
+  // 1. Marquer les idées liées comme livrées
+  var linkedIds = state.releaseIdeas.filter(function(l){return l.release_id===id;}).map(function(l){return l.idea_id;});
+  if(linkedIds.length){
+    await c.from("team_ideas").update({status:"livree"}).in("id", linkedIds);
+  }
+  // 2. Bascule status='published' (déclenche webhook → push)
+  await c.from("team_releases").update({ status:"published", published_at: new Date().toISOString() }).eq("id", id);
+  state.view="releases"; state.reviewReleaseId=null;
+  await refreshAll();
+}
+function onLiveReleasePublished(row, old){
+  if(!row)return;
+  if(old && old.status==="draft" && row.status==="published"){
+    if(row.shipped_by===state.me)return;
+    showToast("✨ Nouveauté · "+truncate(row.title||"", 48), null);
+    state.toast && (state.toast.releaseId = row.id);
+  }
+}
+function ideasNotYetLivrees(){ return state.ideas.filter(function(i){return i.status!=="livree";}); }
+
 /* ---------- Computations ---------- */
 function dailyDuties(){return state.duties.filter(function(d){return d.cadence==="per_day";});}
 function weeklyDuties(){return state.duties.filter(function(d){return d.cadence==="per_week";});}
@@ -503,7 +592,9 @@ var IC={
   bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.9-.9L3 21l1.9-5a8.5 8.5 0 0 1-.9-3.9 8.4 8.4 0 0 1 8.4-9 8.4 8.4 0 0 1 8.6 8.4z"/></svg>',
   up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9h-3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z"/><path d="M7 11l5-9c1.6 0 3 1.4 3 3v3h5a2 2 0 0 1 2 2.4l-1.6 7.2A2 2 0 0 1 18.4 19H7"/></svg>',
-  dn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1z"/><path d="M17 13l-5 9c-1.6 0-3-1.4-3-3v-3H4a2 2 0 0 1-2-2.4L3.6 6.4A2 2 0 0 1 5.6 5H17"/></svg>'
+  dn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1z"/><path d="M17 13l-5 9c-1.6 0-3-1.4-3-3v-3H4a2 2 0 0 1-2-2.4L3.6 6.4A2 2 0 0 1 5.6 5H17"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7z"/><path d="M19 14l.9 2.2L22 17l-2.1.8L19 20l-.9-2.2L16 17l2.1-.8z"/><path d="M5 14l.7 1.7L7 16l-1.3.5L5 18l-.7-1.5L3 16l1.3-.3z"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>'
 };
 
 /* ---------- Render ---------- */
@@ -520,6 +611,8 @@ function render(){
   else if(v==="tasks")body=viewTasks();
   else if(v==="ideas")body=viewIdeas();
   else if(v==="notifs")body=viewNotifs();
+  else if(v==="releases")body=viewReleases();
+  else if(v==="releaseReview")body=viewReleaseReview();
   else if(v==="duties")body=viewDuties();
   else if(v==="settings")body=viewSettings();
   app.innerHTML=header()+'<main class="fade">'+body+'</main>'+nav()+(state.sheet?sheet():"");
@@ -529,6 +622,7 @@ function header(){
   var un=unreadCount();
   return '<header><div class="logo">'+IC.logo+'</div><div class="brand">L\'Appel</div><div class="spacer"></div>'+
     '<button class="iconbtn" data-action="go" data-view="notifs" aria-label="Notifications">'+IC.bell+(un?'<span class="badge">'+(un>9?"9+":un)+'</span>':'')+'</button>'+
+    (function(){var rn=unreadReleasesCount(); return '<button class="iconbtn" data-action="go" data-view="releases" aria-label="Quoi de neuf">'+IC.spark+(rn?'<span class="badge">'+(rn>9?"9+":rn)+'</span>':'')+'</button>';})()+
     '<button class="iconbtn" data-action="go" data-view="ideas" aria-label="Idées">'+IC.idea+'</button>'+
     '<button class="iconbtn" data-action="theme" aria-label="Thème">'+(dark?IC.sun:IC.moon)+'</button>'+
     '<button class="iconbtn" data-action="go" data-view="settings" aria-label="Réglages">'+IC.gear+'</button></header>';
@@ -561,6 +655,7 @@ function viewPoint(){
     link("recits",IC.recits,"Récitations")+
     link("ideas",IC.idea,"Idées"+(ide?" ("+ide+")":""))+'</div>';
   h+=pushPromptCard();
+  h+=draftPromptCard();
 
   // à faire aujourd'hui (tâches datées)
   var tdyT=state.tasks.filter(function(t){return t.due_date===tdy&&!t.done;}).sort(function(a,b){var x=a.due_time||"99:99",y=b.due_time||"99:99";return x<y?-1:x>y?1:0;});
@@ -817,7 +912,9 @@ function ideaCard(i){
     });
     thread+='<div class="cadd"><input id="ci-'+i.id+'" placeholder="Écris un commentaire…" maxlength="500"><button data-action="add-comment" data-id="'+i.id+'">Envoyer</button></div></div>';
   }
-  return '<div class="idea'+(i.kind==="amelioration"?" amel":"")+'" id="idea-'+i.id+'"><div class="row"><span class="pill '+(i.kind==="amelioration"?"info":"")+'">'+(i.kind==="amelioration"?"🛠️ Amélioration":"💡 Idée")+'</span><div class="grow"></div>'+(i.status!=="nouvelle"?'<span class="tiny muted">'+esc(i.status)+'</span>':"")+'</div>'+
+  var rel = releaseForIdea(i.id);
+  var statusPill = i.status==="livree" ? '<span class="pill on">✓ Livrée</span>' : (i.status!=="nouvelle" ? '<span class="tiny muted">'+esc(i.status)+'</span>' : '');
+  return '<div class="idea'+(i.kind==="amelioration"?" amel":"")+'" id="idea-'+i.id+'"><div class="row"><span class="pill '+(i.kind==="amelioration"?"info":"")+'">'+(i.kind==="amelioration"?"🛠️ Amélioration":"💡 Idée")+'</span><div class="grow"></div>'+statusPill+'</div>'+    (rel ? '<div><span class="relbadge" data-action="open-release" data-id="'+rel.id+'">✨ Livré dans : '+esc(truncate(rel.title||"",40))+'</span></div>' : '')+
     '<div style="margin:8px 0;word-break:break-word">'+esc(i.text)+'</div>'+
     '<div class="vrow">'+
       '<button class="vbtn'+(mine===1?" on up":"")+'" data-action="vote" data-id="'+i.id+'" data-v="1" aria-label="Pour">👍 <span class="vcount">'+ups.length+'</span></button>'+
@@ -880,7 +977,7 @@ function viewSettings(){
   h+='<h2 class="sec">Devoirs récurrents</h2><div class="card">';
   h+=state.duties.map(function(d){return '<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+'</div><span class="pill">'+(d.cadence==="per_day"?"jour":"sem")+' ×'+(d.target||1)+'</span></div>';}).join("");
   h+='<label class="lab">Nouveau devoir</label><input id="d-label" class="field" placeholder="Libellé"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter le devoir</button></div>';
-  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v4 (push app fermée)</p>';
+  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v6 (Quoi de neuf)</p>';
   return h;
 }
 
@@ -898,6 +995,112 @@ function pushSettingsCard(){
   else if(st==="on") btn='<button class="btn ghost sm" data-action="push-disable">Désactiver</button>';
   else btn='<button class="btn sm" data-action="push-enable">Activer</button>';
   return '<div class="card"><div class="row"><div class="grow"><div class="ttl">Recevoir les notifications push</div><div class="tiny muted">Une notif système quand un frère ajoute une idée ou un commentaire — même app fermée.</div></div>'+line+'</div><div class="row" style="margin-top:10px">'+btn+'</div></div>';
+}
+
+
+/* ---------- Vues releases / Quoi de neuf ---------- */
+function draftPromptCard(){
+  if(!isReleaseOwner())return "";
+  var drafts = draftReleases();
+  if(!drafts.length) return "";
+  var top = drafts[0];
+  var rest = drafts.length > 1 ? (' <span class="tiny muted">(+'+(drafts.length-1)+' autre'+(drafts.length-1>1?'s':'')+')</span>') : '';
+  return '<div class="draftprompt">'+
+    '<div class="ttl" style="display:flex;align-items:center;gap:6px">📝 Nouveauté prête à publier'+rest+'</div>'+
+    '<div class="small" style="margin:6px 0 10px;word-break:break-word"><b>'+esc(top.title||"(sans titre)")+'</b></div>'+
+    '<div class="row" style="gap:8px"><button class="btn sm" data-action="open-review" data-id="'+top.id+'">Réviser et publier</button>'+
+    '<button class="btn ghost sm" data-action="go" data-view="releases">Tout voir</button></div>'+
+  '</div>';
+}
+function viewReleases(){
+  if(!state.ready)return loading();
+  markReleasesSeen();
+  var drafts = isReleaseOwner() ? draftReleases() : [];
+  var pubs = publishedReleases();
+  var h = '<button class="back" data-action="go" data-view="point">← Le point</button>'+
+    '<h2 class="sec">✨ Quoi de neuf</h2>';
+  if(drafts.length){
+    h += '<h2 class="sec" style="margin-top:6px">📝 Drafts (visibles uniquement par toi)</h2>';
+    drafts.forEach(function(r){ h += releaseCard(r); });
+  }
+  if(!pubs.length && !drafts.length){
+    h += '<div class="empty">Pas encore de release publiée.</div>';
+    return h;
+  }
+  if(pubs.length){
+    if(drafts.length) h += '<h2 class="sec" style="margin-top:14px">Publiées</h2>';
+    pubs.forEach(function(r){ h += releaseCard(r); });
+  }
+  return h;
+}
+function releaseCard(r){
+  var isDraft = r.status==="draft";
+  var date = r.published_at || r.created_at;
+  var dateStr = relTime(Date.parse(date)||0);
+  var linkedIdeas = ideasForRelease(r.id);
+  var meta = '<div class="rmeta">'+(r.version?'<b>'+esc(r.version)+'</b> · ':'')+esc(r.shipped_by||"")+' · '+esc(dateStr)+(r.commit_sha?(' · <code style="font-size:11px;background:var(--bg2);padding:1px 5px;border-radius:4px">'+esc(r.commit_sha.slice(0,7))+'</code>'):'')+'</div>';
+  var body = r.body ? '<div class="rbody">'+esc(r.body)+'</div>' : '';
+  var ideas = linkedIdeas.length ? '<div class="rideas">'+linkedIdeas.map(function(i){return '<span class="ridea" data-action="goto-idea" data-id="'+i.id+'">'+(i.kind==="amelioration"?"🛠️":"💡")+" "+esc(truncate(i.text,40))+'</span>';}).join("")+'</div>' : '';
+  var actions = '';
+  if(isDraft){
+    actions = '<div class="row" style="gap:7px;margin-top:10px"><button class="btn sm" data-action="open-review" data-id="'+r.id+'">Réviser et publier</button>'+
+      '<button class="btn ghost sm" data-action="del-draft" data-id="'+r.id+'">Supprimer</button></div>';
+  } else if(r.goto){
+    actions = '<div class="row" style="gap:7px;margin-top:10px"><button class="btn sm" data-action="release-goto" data-goto="'+esc(r.goto)+'">Aller essayer →</button></div>';
+  }
+  return '<div class="relcard'+(isDraft?" draft":"")+'" id="release-'+r.id+'">'+
+    '<div class="rtitle">'+(isDraft?"📝 ":"✨ ")+esc(r.title||"(sans titre)")+'</div>'+
+    meta + body + ideas + actions +
+  '</div>';
+}
+function viewReleaseReview(){
+  if(!state.ready)return loading();
+  if(!isReleaseOwner()) return '<div class="empty">Seul Bilal peut publier des releases.</div>';
+  var rel = state.releases.find(function(r){return r.id===state.reviewReleaseId;});
+  if(!rel) return '<button class="back" data-action="go" data-view="releases">← Quoi de neuf</button><div class="empty">Draft introuvable.</div>';
+  if(rel.status==="published") return '<button class="back" data-action="go" data-view="releases">← Quoi de neuf</button><div class="empty">Cette release est déjà publiée.</div>';
+  var linkedIds = state.releaseIdeas.filter(function(l){return l.release_id===rel.id;}).map(function(l){return l.idea_id;});
+  var pickable = ideasNotYetLivrees();
+  var gotoOptions = ["point","ideas","videos","args","recits","tasks","settings"].map(function(g){return '<option value="'+g+'"'+(rel.goto===g?" selected":"")+'>'+g+'</option>';}).join("");
+  var h = '<button class="back" data-action="go" data-view="releases">← Quoi de neuf</button>'+
+    '<h2 class="sec">📝 Réviser la release</h2>'+
+    '<div class="card">'+
+      '<label class="lab">Titre court (≤ 50 chars)</label>'+
+      '<input id="rev-title" class="field" maxlength="60" value="'+esc(rel.title||"")+'">'+
+      '<label class="lab">Description (1-3 phrases)</label>'+
+      '<textarea id="rev-body" class="field" rows="5" maxlength="600">'+esc(rel.body||"")+'</textarea>'+
+      '<label class="lab">Onglet cible (où l\'utilisateur atterrit quand il tape « Aller essayer »)</label>'+
+      '<select id="rev-goto" class="field">'+gotoOptions+'</select>'+
+      '<div class="row"><div class="grow"><label class="lab" style="margin-top:0">Version</label><input id="rev-version" class="field" style="margin:0" value="'+esc(rel.version||"")+'"></div>'+
+      '<div class="grow"><label class="lab" style="margin-top:0">Commit SHA (7 chars)</label><input id="rev-sha" class="field" style="margin:0" value="'+esc(rel.commit_sha||"")+'"></div></div>'+
+      '<div class="row" style="gap:8px;margin-top:12px"><button class="btn ghost sm" data-action="save-draft" data-id="'+rel.id+'">💾 Enregistrer les modifs</button></div>'+
+    '</div>'+
+    '<h2 class="sec">Idées / améliorations résolues par cette release</h2>'+
+    '<div class="card">';
+  if(!pickable.length && !linkedIds.length){
+    h += '<div class="muted small">Aucune idée non-livrée. (Tu peux quand même publier sans rien lier.)</div>';
+  } else {
+    var seen = {};
+    h += '<div class="chips">';
+    // afficher d'abord les déjà liées (même si déjà 'livree') pour pouvoir les décocher
+    var alreadyLinked = state.ideas.filter(function(i){return linkedIds.indexOf(i.id)>=0;});
+    alreadyLinked.forEach(function(i){
+      seen[i.id]=1;
+      h += '<button class="chip2 on" data-action="toggle-link-idea" data-id="'+i.id+'">'+(i.kind==="amelioration"?"🛠️ ":"💡 ")+esc(truncate(i.text,50))+' ✓</button>';
+    });
+    pickable.forEach(function(i){
+      if(seen[i.id]) return;
+      h += '<button class="chip2" data-action="toggle-link-idea" data-id="'+i.id+'">'+(i.kind==="amelioration"?"🛠️ ":"💡 ")+esc(truncate(i.text,50))+'</button>';
+    });
+    h += '</div>';
+    h += '<div class="tiny muted" style="margin-top:8px">Les idées cochées passeront automatiquement en statut « Livrée » à la publication.</div>';
+  }
+  h += '</div>'+
+    '<div class="card center">'+
+      '<button class="btn block" data-action="publish-release" data-id="'+rel.id+'">🚀 Publier maintenant — notifier '+(state.members.length||"les")+' frère'+(state.members.length>1?'s':'')+'</button>'+
+      '<button class="btn ghost sm" data-action="del-draft" data-id="'+rel.id+'" style="margin-top:10px">Supprimer ce draft</button>'+
+    '</div>';
+  return h;
 }
 
 function renderOnboard(){
@@ -983,6 +1186,14 @@ async function handle(a,el){
   if(a==="push-enable"){ enablePush(); return; }
   if(a==="push-disable"){ disablePush(); return; }
   if(a==="push-dismiss"){ dismissPushPrompt(); return; }
+  if(a==="open-review"){ state.view="releaseReview"; state.reviewReleaseId=parseInt(el.getAttribute("data-id"),10); render(); return; }
+  if(a==="open-release"){ state.view="releases"; render(); setTimeout(function(){ var t=document.getElementById("release-"+el.getAttribute("data-id")); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },50); return; }
+  if(a==="goto-idea"){ var gi=parseInt(el.getAttribute("data-id"),10); state.view="ideas"; state.openComments[gi]=true; render(); setTimeout(function(){ var t=document.getElementById("idea-"+gi); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },50); return; }
+  if(a==="release-goto"){ var g=el.getAttribute("data-goto"); if(g){ state.view=g; render(); } return; }
+  if(a==="save-draft"){ var rid=parseInt(el.getAttribute("data-id"),10); updateDraft(rid,{ title:val("rev-title"), body:val("rev-body"), goto:val("rev-goto")||null, version:val("rev-version")||null, commit_sha:val("rev-sha")||null }); return; }
+  if(a==="toggle-link-idea"){ var iid=parseInt(el.getAttribute("data-id"),10); var rid2=state.reviewReleaseId; if(!rid2)return; var cur=state.releaseIdeas.filter(function(l){return l.release_id===rid2;}).map(function(l){return l.idea_id;}); var idx=cur.indexOf(iid); if(idx>=0)cur.splice(idx,1); else cur.push(iid); setDraftIdeas(rid2,cur); return; }
+  if(a==="publish-release"){ publishRelease(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="del-draft"){ deleteDraft(parseInt(el.getAttribute("data-id"),10)); return; }
 
   if(a==="add-member"){ addMember(val("m-name")); return; }
   if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1); return; }
@@ -998,21 +1209,40 @@ async function joinAs(name){ state.code=state.onbCode||state.code; state.me=name
 function toggleTheme(){ var d=document.documentElement.getAttribute("data-theme")==="dark"; setTheme(d?"light":"dark"); }
 function setTheme(t){ document.documentElement.setAttribute("data-theme",t); lset("team:theme",t); var m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute("content",t==="dark"?"#15120E":"#E0795F"); }
 
-async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); await refreshPushState(); render(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
+async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); loadReleasesSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); await refreshPushState(); render(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
 function openIdeaDeepLink(ideaId){ if(!ideaId)return; var id=parseInt(ideaId,10); if(!id||!state.code||!state.me)return; state.view="ideas"; state.openComments[id]=true; markNotifSeen(); render(); setTimeout(function(){ var t=document.getElementById("idea-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
+function openReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; var id=parseInt(releaseId,10); state.view="releases"; markReleasesSeen(); render(); setTimeout(function(){ var t=document.getElementById("release-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
+function openReviewReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; if(!isReleaseOwner()){ openReleaseDeepLink(releaseId); return; } var id=parseInt(releaseId,10); state.view="releaseReview"; state.reviewReleaseId=id; render(); }
 function init(){
   setTheme(lget("team:theme",(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"));
   if(state.code&&state.me){ state.onbStep="name"; render(); start(); }
   else { state.onbStep="code"; state.onbCode=state.code||""; renderOnboard(); }
   document.addEventListener("visibilitychange",function(){ if(!document.hidden&&state.code&&state.me)debRefresh(); });
   // Deep-link initial via ?idea=ID (clic notif push ou partage de lien)
-  try{ var qs=new URLSearchParams(window.location.search); var qi=qs.get("idea"); if(qi){ var tries=0; var poll=setInterval(function(){ tries++; if(state.code&&state.me){ clearInterval(poll); openIdeaDeepLink(qi); } else if(tries>40){ clearInterval(poll); } },150); } }catch(_){}
+  try{
+    var qs=new URLSearchParams(window.location.search);
+    var qi=qs.get("idea"), qr=qs.get("release"), qrr=qs.get("reviewRelease");
+    if(qi||qr||qrr){
+      var tries=0; var poll=setInterval(function(){ tries++;
+        if(state.code&&state.me){ clearInterval(poll);
+          if(qi)openIdeaDeepLink(qi);
+          if(qr)openReleaseDeepLink(qr);
+          if(qrr)openReviewReleaseDeepLink(qrr);
+        } else if(tries>40){ clearInterval(poll); }
+      },150);
+    }
+  }catch(_){}
   // Message du Service Worker (clic sur notif push pendant que l\'app est ouverte)
-  try{ if("serviceWorker" in navigator){ navigator.serviceWorker.addEventListener("message",function(ev){ if(ev&&ev.data&&ev.data.type==="open-idea"){ openIdeaDeepLink(ev.data.ideaId); } }); } }catch(_){}
+  try{ if("serviceWorker" in navigator){ navigator.serviceWorker.addEventListener("message",function(ev){
+    if(!ev||!ev.data)return;
+    if(ev.data.type==="open-idea") openIdeaDeepLink(ev.data.ideaId);
+    else if(ev.data.type==="open-release") openReleaseDeepLink(ev.data.releaseId);
+    else if(ev.data.type==="open-review-release") openReviewReleaseDeepLink(ev.data.releaseId);
+  }); } }catch(_){}
 }
 if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment,VAPID_PUBLIC:VAPID_PUBLIC,pushSupported:pushSupported,enablePush:enablePush,disablePush:disablePush,refreshPushState:refreshPushState,urlBase64ToUint8Array:urlBase64ToUint8Array,deviceId:deviceId,openIdeaDeepLink:openIdeaDeepLink};
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment,VAPID_PUBLIC:VAPID_PUBLIC,pushSupported:pushSupported,enablePush:enablePush,disablePush:disablePush,refreshPushState:refreshPushState,urlBase64ToUint8Array:urlBase64ToUint8Array,deviceId:deviceId,openIdeaDeepLink:openIdeaDeepLink,publishedReleases:publishedReleases,draftReleases:draftReleases,ideasForRelease:ideasForRelease,releaseForIdea:releaseForIdea,unreadReleasesCount:unreadReleasesCount,publishRelease:publishRelease,updateDraft:updateDraft,deleteDraft:deleteDraft,setDraftIdeas:setDraftIdeas,isReleaseOwner:isReleaseOwner,openReleaseDeepLink:openReleaseDeepLink,openReviewReleaseDeepLink:openReviewReleaseDeepLink};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>

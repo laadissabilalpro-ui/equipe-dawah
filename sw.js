@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v5 (push idée vs amélioration) */
-const CACHE = "lappel-v5";
+/* L'Appel — Équipe · service worker (PWA) — v6 (Quoi de neuf : releases + drafts) */
+const CACHE = "lappel-v6";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
@@ -25,7 +25,6 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // Réseau d'abord pour le HTML (toujours la dernière version)
   if (req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html")) {
     e.respondWith(
       fetch(req).then((r) => {
@@ -37,7 +36,6 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Cache d'abord pour le reste (CDN supabase, icônes, manifest)
   e.respondWith(
     caches.match(req).then((cached) =>
       cached || fetch(req).then((r) => {
@@ -51,7 +49,7 @@ self.addEventListener("fetch", (e) => {
   );
 });
 
-/* ---------- v4 : Web Push ---------- */
+/* ---------- v4+ : Web Push ---------- */
 self.addEventListener("push", (e) => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch (_) {
@@ -59,15 +57,19 @@ self.addEventListener("push", (e) => {
   }
   const title = data.title || "L'Appel — Équipe";
   const body = data.body || "";
-  const ideaId = data.ideaId || null;
   const url = data.url || "./";
+  // tag : un par release/idée/draft pour éviter les doublons à l'écran
+  let tag;
+  if (url.indexOf("release=") >= 0) tag = "release-" + url.split("release=")[1];
+  else if (url.indexOf("reviewRelease=") >= 0) tag = "review-" + url.split("reviewRelease=")[1];
+  else if (url.indexOf("idea=") >= 0) tag = "idea-" + url.split("idea=")[1];
   e.waitUntil(self.registration.showNotification(title, {
     body,
     icon: "./icon-192.png",
     badge: "./icon-192.png",
-    tag: ideaId ? ("idea-" + ideaId) : undefined,
+    tag,
     renotify: false,
-    data: { ideaId, url },
+    data: { url },
   }));
 });
 
@@ -75,13 +77,23 @@ self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const data = e.notification.data || {};
   const targetUrl = new URL((data.url || "./"), self.location.href).href;
+  // Détermine quel type de deep-link envoyer aux clients
+  let msg = null;
+  const u = data.url || "";
+  if (u.indexOf("reviewRelease=") >= 0) {
+    msg = { type: "open-review-release", releaseId: parseInt(u.split("reviewRelease=")[1], 10) };
+  } else if (u.indexOf("release=") >= 0) {
+    msg = { type: "open-release", releaseId: parseInt(u.split("release=")[1], 10) };
+  } else if (u.indexOf("idea=") >= 0) {
+    msg = { type: "open-idea", ideaId: parseInt(u.split("idea=")[1], 10) };
+  }
   e.waitUntil((async () => {
     const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const c of clientsList) {
       try {
-        const u = new URL(c.url);
-        if (u.origin === self.location.origin) {
-          c.postMessage({ type: "open-idea", ideaId: data.ideaId });
+        const cu = new URL(c.url);
+        if (cu.origin === self.location.origin) {
+          if (msg) c.postMessage(msg);
           return c.focus();
         }
       } catch (_) {}
