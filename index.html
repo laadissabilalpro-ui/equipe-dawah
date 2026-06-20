@@ -186,6 +186,8 @@
   .ntitle{font-weight:800;font-size:14px}
   .nbody{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-word}
   .ntime{font-size:11px;color:var(--muted);margin-top:3px}
+  /* v4 — taille du SVG dans la carte de prompt push */
+  .ttl svg{width:18px;height:18px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -465,7 +467,7 @@ function pushPromptCard(){
   if(state.pushPromptDismissed&&state.pushState!=="granted-not-subscribed") return "";
   if(!pushSupported()) return "";
   return '<div class="card" style="border-left:4px solid var(--accent);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 8%,var(--card)),var(--card))">'+
-    '<div class="ttl">'+IC.bell+' Active les notifications</div>'+
+    '<div class="ttl" style="display:flex;align-items:center;gap:6px"><span style="width:18px;height:18px;display:inline-grid;place-items:center;color:var(--accent)">'+IC.bell+'</span> Active les notifications</div>'+
     '<p class="small muted" style="margin:6px 0 10px">Reçois une notification quand un frère ajoute une idée ou un commentaire — même app fermée.</p>'+
     '<div class="row" style="gap:8px"><button class="btn sm" data-action="push-enable">Activer</button><button class="btn ghost sm" data-action="push-dismiss">Plus tard</button></div>'+
   '</div>';
