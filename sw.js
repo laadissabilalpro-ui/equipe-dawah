@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v3 (votes + commentaires + notifs) */
-const CACHE = "lappel-v3";
+/* L'Appel — Équipe · service worker (PWA) — v4 (push notifications app fermée) */
+const CACHE = "lappel-v4";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
@@ -46,4 +46,46 @@ self.addEventListener("fetch", (e) => {
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return r;
-     
+      }).catch(() => cached)
+    )
+  );
+});
+
+/* ---------- v4 : Web Push ---------- */
+self.addEventListener("push", (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (_) {
+    try { data = { title: "L'Appel", body: e.data ? e.data.text() : "" }; } catch (_) { data = {}; }
+  }
+  const title = data.title || "L'Appel — Équipe";
+  const body = data.body || "";
+  const ideaId = data.ideaId || null;
+  const url = data.url || "./";
+  e.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: "./icon-192.png",
+    badge: "./icon-192.png",
+    tag: ideaId ? ("idea-" + ideaId) : undefined,
+    renotify: false,
+    data: { ideaId, url },
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const data = e.notification.data || {};
+  const targetUrl = new URL((data.url || "./"), self.location.href).href;
+  e.waitUntil((async () => {
+    const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of clientsList) {
+      try {
+        const u = new URL(c.url);
+        if (u.origin === self.location.origin) {
+          c.postMessage({ type: "open-idea", ideaId: data.ideaId });
+          return c.focus();
+        }
+      } catch (_) {}
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+  })());
+});

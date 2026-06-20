@@ -199,6 +199,7 @@
 /* ---------- Config ---------- */
 var SB_URL = "https://lpvuklsxnrqliarwvmst.supabase.co";
 var SB_KEY = "sb_publishable_OMWOk-Vvkr_2JGle1oz0kg_d1JLntHJ";
+var VAPID_PUBLIC = "BI4YoHrVmPqrzYr5oD73MuLCIdSMV0DpvKf9Fea5Jc746KlkWPFXlHsSFDWKw6Xn_uUMwYQ0Tx-7wEHtfyJtvvg";
 var DEFAULT_MEMBERS = ["Bilal","Fahim","Clément","Abdel","Idris","Moussa","Yacoub"];
 var DEFAULT_DUTIES = [
   {label:"Poster 1–2 vidéos", cadence:"per_day",  target:1, sort:1},
@@ -258,6 +259,7 @@ var state = {
   videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"",
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
+  pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
   ready:false, error:"", onbStep:"code", onbCode:"", onbNames:null
 };
 var sb=null, channel=null;
@@ -413,6 +415,62 @@ function onLiveComment(row){
   showToast("💬 "+(row.author||"Quelqu'un")+" a commenté"+(idea?(" : "+truncate(idea.text,30)):"") , row.idea_id);
 }
 
+
+/* ---------- Push notifications (v4 — app fermée) ---------- */
+function pushSupported(){ return ("serviceWorker" in navigator) && ("PushManager" in window) && ("Notification" in window); }
+function urlBase64ToUint8Array(b64){ var pad="=".repeat((4-b64.length%4)%4); var s=(b64+pad).replace(/-/g,"+").replace(/_/g,"/"); var raw=window.atob(s); var out=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i); return out; }
+function deviceId(){ var k="team:device_id"; var v=lget(k,""); if(!v){ v="dev_"+Math.random().toString(36).slice(2,10)+Date.now().toString(36); lset(k,v); } return v; }
+async function refreshPushState(){
+  if(!pushSupported()){ state.pushState="unsupported"; return; }
+  var perm=(typeof Notification!=="undefined")?Notification.permission:"default";
+  if(perm==="denied"){ state.pushState="denied"; state.pushSub=null; return; }
+  try{
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    state.pushSub=sub;
+    state.pushState=sub?"on":(perm==="granted"?"granted-not-subscribed":"default");
+  }catch(e){ state.pushState="error"; }
+}
+async function enablePush(){
+  if(!pushSupported()){ alert("Ce navigateur ne supporte pas les notifications push."); return false; }
+  try{
+    var perm=await Notification.requestPermission();
+    if(perm!=="granted"){ state.pushState=(perm==="denied"?"denied":"default"); render(); return false; }
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC) });
+    var keys=sub.toJSON().keys||{};
+    var row={code:state.code,member:state.me,endpoint:sub.endpoint,p256dh:keys.p256dh,auth:keys.auth,device_id:deviceId(),user_agent:(navigator.userAgent||"").slice(0,250)};
+    await client().from("team_push_subs").upsert(row,{onConflict:"endpoint"});
+    state.pushSub=sub; state.pushState="on";
+    lset("team:push_prompt_dismissed_v4","1"); state.pushPromptDismissed=true;
+    render();
+    return true;
+  }catch(e){ console.error("enablePush",e); alert("Impossible d'activer les notifications : "+(e&&e.message||e)); return false; }
+}
+async function disablePush(){
+  try{
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    if(sub){
+      try{ await client().from("team_push_subs").delete().eq("endpoint",sub.endpoint); }catch(_){}
+      try{ await sub.unsubscribe(); }catch(_){}
+    }
+    state.pushSub=null; state.pushState="default";
+    render();
+  }catch(e){ console.error("disablePush",e); }
+}
+function dismissPushPrompt(){ lset("team:push_prompt_dismissed_v4","1"); state.pushPromptDismissed=true; render(); }
+function pushPromptCard(){
+  if(state.pushState!=="default"&&state.pushState!=="granted-not-subscribed") return "";
+  if(state.pushPromptDismissed&&state.pushState!=="granted-not-subscribed") return "";
+  if(!pushSupported()) return "";
+  return '<div class="card" style="border-left:4px solid var(--accent);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 8%,var(--card)),var(--card))">'+
+    '<div class="ttl">'+IC.bell+' Active les notifications</div>'+
+    '<p class="small muted" style="margin:6px 0 10px">Reçois une notification quand un frère ajoute une idée ou un commentaire — même app fermée.</p>'+
+    '<div class="row" style="gap:8px"><button class="btn sm" data-action="push-enable">Activer</button><button class="btn ghost sm" data-action="push-dismiss">Plus tard</button></div>'+
+  '</div>';
+}
+
 /* ---------- Computations ---------- */
 function dailyDuties(){return state.duties.filter(function(d){return d.cadence==="per_day";});}
 function weeklyDuties(){return state.duties.filter(function(d){return d.cadence==="per_week";});}
@@ -500,6 +558,7 @@ function viewPoint(){
     link("args",IC.args,"Argumentaires ("+state.args.length+")")+
     link("recits",IC.recits,"Récitations")+
     link("ideas",IC.idea,"Idées"+(ide?" ("+ide+")":""))+'</div>';
+  h+=pushPromptCard();
 
   // à faire aujourd'hui (tâches datées)
   var tdyT=state.tasks.filter(function(t){return t.due_date===tdy&&!t.done;}).sort(function(a,b){var x=a.due_time||"99:99",y=b.due_time||"99:99";return x<y?-1:x>y?1:0;});
@@ -811,6 +870,7 @@ function viewSettings(){
   var h='<button class="back" data-action="go" data-view="point">← Le point</button><h2 class="sec">Réglages</h2>';
   h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">Code de groupe</div><div class="tiny muted">Partage-le aux frères.</div></div><span class="pill" style="font-size:16px">'+esc(state.code)+'</span></div></div>';
   h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">Moi</div><div class="tiny muted">'+esc(state.me)+'</div></div><button class="btn ghost sm" data-action="switch-me">Changer</button></div></div>';
+  h+=pushSettingsCard();
   h+='<div class="card"><div class="row"><div class="grow">Mode sombre</div><button class="btn ghost sm" data-action="theme">'+(dark?"Désactiver":"Activer")+'</button></div></div>';
   h+='<h2 class="sec">Frères ('+state.members.length+')</h2><div class="card">';
   h+=state.members.map(function(m){return '<div class="row" style="padding:5px 0"><div class="avatar" style="width:30px;height:30px;font-size:14px;background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div>';}).join("");
@@ -818,8 +878,24 @@ function viewSettings(){
   h+='<h2 class="sec">Devoirs récurrents</h2><div class="card">';
   h+=state.duties.map(function(d){return '<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+'</div><span class="pill">'+(d.cadence==="per_day"?"jour":"sem")+' ×'+(d.target||1)+'</span></div>';}).join("");
   h+='<label class="lab">Nouveau devoir</label><input id="d-label" class="field" placeholder="Libellé"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter le devoir</button></div>';
-  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v3 (votes + commentaires + notifs)</p>';
+  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v4 (push app fermée)</p>';
   return h;
+}
+
+
+function pushSettingsCard(){
+  var st=state.pushState; var supp=pushSupported();
+  var line="";
+  if(!supp) line='<span class="pill warn">Non supporté ici</span>';
+  else if(st==="denied") line='<span class="pill warn">Bloqué par le navigateur</span>';
+  else if(st==="on") line='<span class="pill on">Activées ✓</span>';
+  else line='<span class="pill">Désactivées</span>';
+  var btn="";
+  if(!supp) btn='';
+  else if(st==="denied") btn='<div class="tiny muted" style="margin-top:6px">Va dans les réglages du navigateur pour les réautoriser.</div>';
+  else if(st==="on") btn='<button class="btn ghost sm" data-action="push-disable">Désactiver</button>';
+  else btn='<button class="btn sm" data-action="push-enable">Activer</button>';
+  return '<div class="card"><div class="row"><div class="grow"><div class="ttl">Recevoir les notifications push</div><div class="tiny muted">Une notif système quand un frère ajoute une idée ou un commentaire — même app fermée.</div></div>'+line+'</div><div class="row" style="margin-top:10px">'+btn+'</div></div>';
 }
 
 function renderOnboard(){
@@ -902,6 +978,9 @@ async function handle(a,el){
   if(a==="del-comment"){ delComment(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="notif-clear"){ markNotifSeen(); render(); return; }
   if(a==="notif-open"){ var nid=parseInt(el.getAttribute("data-id"),10); if(nid){ state.openComments[nid]=true; } state.view="ideas"; markNotifSeen(); render(); setTimeout(function(){ var t=document.getElementById("idea-"+nid); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },50); return; }
+  if(a==="push-enable"){ enablePush(); return; }
+  if(a==="push-disable"){ disablePush(); return; }
+  if(a==="push-dismiss"){ dismissPushPrompt(); return; }
 
   if(a==="add-member"){ addMember(val("m-name")); return; }
   if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1); return; }
@@ -917,16 +996,21 @@ async function joinAs(name){ state.code=state.onbCode||state.code; state.me=name
 function toggleTheme(){ var d=document.documentElement.getAttribute("data-theme")==="dark"; setTheme(d?"light":"dark"); }
 function setTheme(t){ document.documentElement.setAttribute("data-theme",t); lset("team:theme",t); var m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute("content",t==="dark"?"#15120E":"#E0795F"); }
 
-async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
+async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); await refreshPushState(); render(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
+function openIdeaDeepLink(ideaId){ if(!ideaId)return; var id=parseInt(ideaId,10); if(!id||!state.code||!state.me)return; state.view="ideas"; state.openComments[id]=true; markNotifSeen(); render(); setTimeout(function(){ var t=document.getElementById("idea-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
 function init(){
   setTheme(lget("team:theme",(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"));
   if(state.code&&state.me){ state.onbStep="name"; render(); start(); }
   else { state.onbStep="code"; state.onbCode=state.code||""; renderOnboard(); }
   document.addEventListener("visibilitychange",function(){ if(!document.hidden&&state.code&&state.me)debRefresh(); });
+  // Deep-link initial via ?idea=ID (clic notif push ou partage de lien)
+  try{ var qs=new URLSearchParams(window.location.search); var qi=qs.get("idea"); if(qi){ var tries=0; var poll=setInterval(function(){ tries++; if(state.code&&state.me){ clearInterval(poll); openIdeaDeepLink(qi); } else if(tries>40){ clearInterval(poll); } },150); } }catch(_){}
+  // Message du Service Worker (clic sur notif push pendant que l\'app est ouverte)
+  try{ if("serviceWorker" in navigator){ navigator.serviceWorker.addEventListener("message",function(ev){ if(ev&&ev.data&&ev.data.type==="open-idea"){ openIdeaDeepLink(ev.data.ideaId); } }); } }catch(_){}
 }
 if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment};
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment,VAPID_PUBLIC:VAPID_PUBLIC,pushSupported:pushSupported,enablePush:enablePush,disablePush:disablePush,refreshPushState:refreshPushState,urlBase64ToUint8Array:urlBase64ToUint8Array,deviceId:deviceId,openIdeaDeepLink:openIdeaDeepLink};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>
