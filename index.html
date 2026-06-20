@@ -154,6 +154,38 @@
   .sheet .inner{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
   .sheet .opt{display:flex;align-items:center;gap:12px;padding:14px 6px;font-weight:700;border-bottom:1px solid var(--line)}
   .sheet .opt svg{width:22px;height:22px;color:var(--accent)}
+
+  /* v3 — votes, commentaires, notifications */
+  .vrow{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .vbtn{font-size:14px;font-weight:800;padding:7px 11px;border-radius:11px;background:rgba(0,0,0,.08);color:var(--postext);display:inline-flex;align-items:center;gap:5px;border:1.5px solid transparent}
+  .vbtn.on.up{background:color-mix(in srgb,var(--good) 22%,transparent);color:var(--good);border-color:var(--good)}
+  .vbtn.on.dn{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent-d);border-color:var(--accent-d)}
+  .vcount{font-size:13px;font-weight:800;min-width:18px;text-align:center}
+  .voters{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .voter{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--bg2);color:var(--muted)}
+  .voter.up{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+  .voter.dn{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent-d)}
+  .cwrap{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  .cmsg{display:flex;flex-direction:column;gap:2px;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .cmsg:last-child{border-bottom:none}
+  .cmeta{font-size:11.5px;color:var(--muted);font-weight:700}
+  .ctxt{font-size:13.5px;word-break:break-word;line-height:1.4}
+  .cadd{display:flex;gap:6px;margin-top:8px}
+  .cadd input{flex:1;background:var(--card);border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;font-size:14px}
+  .cadd input:focus{outline:none;border-color:var(--accent)}
+  .cadd button{background:var(--accent);color:#fff;font-weight:800;padding:9px 14px;border-radius:11px;font-size:14px;flex:0 0 auto}
+  .ctoggle{font-size:12.5px;font-weight:800;color:var(--accent);background:transparent;padding:6px 0;display:inline-flex;align-items:center;gap:4px}
+  .toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--text);padding:11px 16px;border-radius:13px;box-shadow:0 10px 28px rgba(60,40,25,.25);z-index:60;max-width:92%;font-weight:700;font-size:14px;border-left:4px solid var(--accent);animation:tin .25s ease;cursor:pointer}
+  [data-theme="dark"] .toast{box-shadow:0 10px 28px rgba(0,0,0,.55)}
+  @keyframes tin{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}
+  .notif{display:flex;gap:10px;padding:11px 10px;border-bottom:1px solid var(--line);align-items:flex-start;cursor:pointer}
+  .notif:last-child{border-bottom:none}
+  .notif.unread{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+  .nicon{width:32px;height:32px;border-radius:9px;background:var(--bg2);display:grid;place-items:center;font-size:16px;flex:0 0 auto}
+  .nicon.unread{background:color-mix(in srgb,var(--accent) 22%,transparent)}
+  .ntitle{font-weight:800;font-size:14px}
+  .nbody{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-word}
+  .ntime{font-size:11px;color:var(--muted);margin-top:3px}
 </style>
 </head>
 <body>
@@ -225,6 +257,7 @@ var state = {
   view: "point", videoId:null, sheet:false,
   videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"",
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
+  votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   ready:false, error:"", onbStep:"code", onbCode:"", onbNames:null
 };
 var sb=null, channel=null;
@@ -263,10 +296,13 @@ async function refreshAll(){
     c.from("team_video_reposts").select("*").eq("code",code),
     c.from("team_arguments").select("*").eq("code",code).order("created_at",{ascending:false}),
     c.from("team_recitations").select("*").eq("code",code).order("sort",{ascending:true}),
-    c.from("team_ideas").select("*").eq("code",code).order("created_at",{ascending:false})
+    c.from("team_ideas").select("*").eq("code",code).order("created_at",{ascending:false}),
+    c.from("team_idea_votes").select("*").eq("code",code),
+    c.from("team_idea_comments").select("*").eq("code",code).order("created_at",{ascending:true})
   ]);
   state.members=res[0].data||[]; state.duties=res[1].data||[]; state.logs=res[2].data||[]; state.tasks=res[3].data||[];
   state.videos=res[4].data||[]; state.reposts=res[5].data||[]; state.args=res[6].data||[]; state.recits=res[7].data||[]; state.ideas=res[8].data||[];
+  state.votes=res[9].data||[]; state.comments=res[10].data||[];
   state.ready=true; render();
 }
 var debRefresh = debounce(function(){ refreshAll().catch(function(e){console.warn(e);}); }, 260);
@@ -275,9 +311,12 @@ function subscribe(){
   var c=client();
   if(channel){ try{c.removeChannel(channel);}catch(e){} }
   var f="code=eq."+state.code;
-  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas"];
+  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas","team_idea_votes","team_idea_comments"];
   channel=c.channel("team-"+state.code);
   tables.forEach(function(t){ channel.on("postgres_changes",{event:"*",schema:"public",table:t,filter:f},debRefresh); });
+  // Toasts en direct sur nouvelles idées et nouveaux commentaires (pas par soi-même)
+  channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_ideas",filter:f},function(p){ onLiveIdea(p&&p.new); });
+  channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_idea_comments",filter:f},function(p){ onLiveComment(p&&p.new); });
   channel.subscribe();
 }
 
@@ -316,6 +355,64 @@ async function ideaToTask(idea){ await client().from("team_tasks").insert({code:
 async function setIdea(id,status){ await client().from("team_ideas").update({status:status}).eq("id",id); await refreshAll(); }
 async function delIdea(id){ await client().from("team_ideas").delete().eq("id",id); await refreshAll(); }
 
+/* ---------- Votes & commentaires (v3) ---------- */
+function myVote(ideaId){ for(var i=0;i<state.votes.length;i++){var v=state.votes[i]; if(v.idea_id===ideaId&&v.member===state.me)return v;} return null; }
+function votesFor(ideaId){ return state.votes.filter(function(v){return v.idea_id===ideaId;}); }
+function commentsFor(ideaId){ return state.comments.filter(function(c){return c.idea_id===ideaId;}).sort(function(a,b){return a.created_at<b.created_at?-1:1;}); }
+async function toggleVote(ideaId,value){
+  var ex=myVote(ideaId), c=client(), code=state.code;
+  if(ex&&ex.value===value){ // re-clic sur le même bouton -> retirer le vote
+    await c.from("team_idea_votes").delete().eq("id",ex.id);
+    state.votes=state.votes.filter(function(v){return v.id!==ex.id;});
+  } else {
+    await c.from("team_idea_votes").upsert({code:code,idea_id:ideaId,member:state.me,value:value},{onConflict:"code,idea_id,member"});
+  }
+  await refreshAll();
+}
+async function addComment(ideaId,text){
+  text=(text||"").trim(); if(!text)return;
+  await client().from("team_idea_comments").insert({code:state.code,idea_id:ideaId,author:state.me,text:text});
+  await refreshAll();
+}
+async function delComment(id){ await client().from("team_idea_comments").delete().eq("id",id); await refreshAll(); }
+
+/* ---------- Notifications (v3) ---------- */
+function notifKey(){ return "team:notifs_seen:"+(state.code||""); }
+function loadNotifSeen(){ var v=lget(notifKey(),""); state.notifSeen=v?(Date.parse(v)||0):0; }
+function markNotifSeen(){ var iso=new Date().toISOString(); lset(notifKey(),iso); state.notifSeen=Date.parse(iso); }
+function notifEvents(){ // tous les events (idées + commentaires) triés du + récent au + ancien
+  var evs=[];
+  state.ideas.forEach(function(i){ evs.push({kind:"idea",t:Date.parse(i.created_at)||0,author:i.author,text:i.text,ideaId:i.id,id:"i"+i.id}); });
+  state.comments.forEach(function(c){ var idea=state.ideas.find(function(x){return x.id===c.idea_id;}); evs.push({kind:"comment",t:Date.parse(c.created_at)||0,author:c.author,text:c.text,ideaId:c.idea_id,ideaText:idea?idea.text:"",id:"c"+c.id}); });
+  evs.sort(function(a,b){return b.t-a.t;});
+  return evs;
+}
+function unreadCount(){ var n=0, evs=notifEvents(); for(var i=0;i<evs.length;i++){ if(evs[i].t>state.notifSeen && evs[i].author!==state.me) n++; } return n; }
+function relTime(ms){ var d=Math.max(0,Date.now()-ms), s=Math.round(d/1000); if(s<60)return "à l'instant"; var m=Math.round(s/60); if(m<60)return "il y a "+m+" min"; var h=Math.round(m/60); if(h<24)return "il y a "+h+" h"; var j=Math.round(h/24); return "il y a "+j+" j"; }
+function truncate(s,n){ s=String(s||""); return s.length>n?(s.slice(0,n-1)+"…"):s; }
+function showToast(msg,ideaId){
+  state.toast={msg:msg,ideaId:ideaId||null,t:Date.now()};
+  if(state._toastT){ clearTimeout(state._toastT); }
+  state._toastT=setTimeout(function(){ state.toast=null; renderToast(); }, 5000);
+  renderToast();
+}
+function renderToast(){
+  var ex=document.getElementById("toast"); if(ex)ex.remove();
+  if(!state.toast)return;
+  var d=document.createElement("div"); d.id="toast"; d.className="toast"; d.textContent=state.toast.msg;
+  d.addEventListener("click",function(){ var id=state.toast&&state.toast.ideaId; state.toast=null; if(state._toastT){clearTimeout(state._toastT);} if(id){state.view="ideas"; state.openComments[id]=true;} renderToast(); render(); });
+  document.body.appendChild(d);
+}
+function onLiveIdea(row){
+  if(!row||row.author===state.me)return;
+  showToast("💡 "+(row.author||"Quelqu'un")+" propose : "+truncate(row.text,48), row.id);
+}
+function onLiveComment(row){
+  if(!row||row.author===state.me)return;
+  var idea=state.ideas.find(function(x){return x.id===row.idea_id;});
+  showToast("💬 "+(row.author||"Quelqu'un")+" a commenté"+(idea?(" : "+truncate(idea.text,30)):"") , row.idea_id);
+}
+
 /* ---------- Computations ---------- */
 function dailyDuties(){return state.duties.filter(function(d){return d.cadence==="per_day";});}
 function weeklyDuties(){return state.duties.filter(function(d){return d.cadence==="per_week";});}
@@ -342,7 +439,11 @@ var IC={
   moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>',
   sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   logo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a9 9 0 0 1 18 0"/><path d="M12 11v8"/><circle cx="12" cy="20" r="1.4" fill="currentColor" stroke="none"/></svg>',
-  open:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>'
+  open:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+  chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.9-.9L3 21l1.9-5a8.5 8.5 0 0 1-.9-3.9 8.4 8.4 0 0 1 8.4-9 8.4 8.4 0 0 1 8.6 8.4z"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9h-3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z"/><path d="M7 11l5-9c1.6 0 3 1.4 3 3v3h5a2 2 0 0 1 2 2.4l-1.6 7.2A2 2 0 0 1 18.4 19H7"/></svg>',
+  dn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1z"/><path d="M17 13l-5 9c-1.6 0-3-1.4-3-3v-3H4a2 2 0 0 1-2-2.4L3.6 6.4A2 2 0 0 1 5.6 5H17"/></svg>'
 };
 
 /* ---------- Render ---------- */
@@ -358,15 +459,17 @@ function render(){
   else if(v==="recits")body=viewRecits();
   else if(v==="tasks")body=viewTasks();
   else if(v==="ideas")body=viewIdeas();
+  else if(v==="notifs")body=viewNotifs();
   else if(v==="duties")body=viewDuties();
   else if(v==="settings")body=viewSettings();
   app.innerHTML=header()+'<main class="fade">'+body+'</main>'+nav()+(state.sheet?sheet():"");
 }
 function header(){
   var dark=document.documentElement.getAttribute("data-theme")==="dark";
-  var nb=ideasNew();
+  var un=unreadCount();
   return '<header><div class="logo">'+IC.logo+'</div><div class="brand">L\'Appel</div><div class="spacer"></div>'+
-    '<button class="iconbtn" data-action="go" data-view="ideas" aria-label="Idées">'+IC.idea+(nb?'<span class="badge">'+nb+'</span>':'')+'</button>'+
+    '<button class="iconbtn" data-action="go" data-view="notifs" aria-label="Notifications">'+IC.bell+(un?'<span class="badge">'+(un>9?"9+":un)+'</span>':'')+'</button>'+
+    '<button class="iconbtn" data-action="go" data-view="ideas" aria-label="Idées">'+IC.idea+'</button>'+
     '<button class="iconbtn" data-action="theme" aria-label="Thème">'+(dark?IC.sun:IC.moon)+'</button>'+
     '<button class="iconbtn" data-action="go" data-view="settings" aria-label="Réglages">'+IC.gear+'</button></header>';
 }
@@ -625,17 +728,71 @@ function viewIdeas(){
   h+='<div class="toolbar">'+itab("all","Toutes")+itab("idee","💡 Idées")+itab("amelioration","🛠️ Améliorations")+'</div>';
   var list=state.ideas.filter(function(i){return state.ideaFilter==="all"||i.kind===state.ideaFilter;});
   if(!list.length){ h+='<div class="empty">Aucune idée — lance-toi !</div>'; return h; }
-  list.forEach(function(i){
-    h+='<div class="idea'+(i.kind==="amelioration"?" amel":"")+'"><div class="row"><span class="pill '+(i.kind==="amelioration"?"info":"")+'">'+(i.kind==="amelioration"?"🛠️ Amélioration":"💡 Idée")+'</span><div class="grow"></div>'+(i.status!=="nouvelle"?'<span class="tiny muted">'+esc(i.status)+'</span>':"")+'</div>'+
-      '<div style="margin:8px 0;word-break:break-word">'+esc(i.text)+'</div>'+
-      '<div class="row tiny muted">'+esc(i.author||"")+'<div class="grow"></div>'+
-        '<button class="copybtn" data-action="idea-task" data-id="'+i.id+'">→ Tâche</button>'+
-        '<button class="copybtn" data-action="idea-done" data-id="'+i.id+'">Faite</button>'+
-        '<button class="copybtn" data-action="del-idea" data-id="'+i.id+'">✕</button></div></div>';
-  });
+  list.forEach(function(i){ h+=ideaCard(i); });
   return h;
 }
+function ideaCard(i){
+  var vs=votesFor(i.id);
+  var ups=vs.filter(function(v){return v.value===1;});
+  var dns=vs.filter(function(v){return v.value===-1;});
+  var mv=myVote(i.id);
+  var mine=mv?mv.value:0;
+  var cms=commentsFor(i.id);
+  var open=!!state.openComments[i.id];
+  var voters="";
+  if(ups.length||dns.length){
+    voters='<div class="voters">'+
+      ups.map(function(v){return '<span class="voter up">👍 '+esc(v.member)+'</span>';}).join("")+
+      dns.map(function(v){return '<span class="voter dn">👎 '+esc(v.member)+'</span>';}).join("")+
+    '</div>';
+  }
+  var thread="";
+  if(open){
+    thread='<div class="cwrap">';
+    if(!cms.length) thread+='<div class="tiny muted" style="padding:4px 0">Aucun commentaire — sois le premier.</div>';
+    cms.forEach(function(c){
+      var canDel=c.author===state.me;
+      thread+='<div class="cmsg"><div class="row" style="gap:6px"><div class="cmeta grow">'+esc(c.author||"?")+' · <span style="font-weight:500">'+esc(relTime(Date.parse(c.created_at)||0))+'</span></div>'+(canDel?'<button class="copybtn" data-action="del-comment" data-id="'+c.id+'" aria-label="Supprimer">✕</button>':"")+'</div><div class="ctxt">'+esc(c.text)+'</div></div>';
+    });
+    thread+='<div class="cadd"><input id="ci-'+i.id+'" placeholder="Écris un commentaire…" maxlength="500"><button data-action="add-comment" data-id="'+i.id+'">Envoyer</button></div></div>';
+  }
+  return '<div class="idea'+(i.kind==="amelioration"?" amel":"")+'" id="idea-'+i.id+'"><div class="row"><span class="pill '+(i.kind==="amelioration"?"info":"")+'">'+(i.kind==="amelioration"?"🛠️ Amélioration":"💡 Idée")+'</span><div class="grow"></div>'+(i.status!=="nouvelle"?'<span class="tiny muted">'+esc(i.status)+'</span>':"")+'</div>'+
+    '<div style="margin:8px 0;word-break:break-word">'+esc(i.text)+'</div>'+
+    '<div class="vrow">'+
+      '<button class="vbtn'+(mine===1?" on up":"")+'" data-action="vote" data-id="'+i.id+'" data-v="1" aria-label="Pour">👍 <span class="vcount">'+ups.length+'</span></button>'+
+      '<button class="vbtn'+(mine===-1?" on dn":"")+'" data-action="vote" data-id="'+i.id+'" data-v="-1" aria-label="Contre">👎 <span class="vcount">'+dns.length+'</span></button>'+
+      '<button class="ctoggle" data-action="toggle-comments" data-id="'+i.id+'">💬 '+cms.length+(open?" · masquer":" · commenter")+'</button>'+
+    '</div>'+
+    voters+thread+
+    '<div class="row tiny muted" style="margin-top:10px">'+esc(i.author||"")+'<div class="grow"></div>'+
+      '<button class="copybtn" data-action="idea-task" data-id="'+i.id+'">→ Tâche</button>'+
+      '<button class="copybtn" data-action="idea-done" data-id="'+i.id+'">Faite</button>'+
+      '<button class="copybtn" data-action="del-idea" data-id="'+i.id+'">✕</button></div></div>';
+}
 function itab(id,label){return '<button class="tab2'+(state.ideaFilter===id?" on":"")+'" data-action="ifilter" data-f="'+id+'">'+label+'</button>';}
+
+function viewNotifs(){
+  if(!state.ready)return loading();
+  var evs=notifEvents(); var seen=state.notifSeen||0;
+  var h='<button class="back" data-action="go" data-view="point">← Le point</button>'+
+    '<div class="row" style="margin:4px 4px 8px"><h2 class="sec" style="margin:0;flex:1">Notifications</h2>'+
+    (evs.some(function(e){return e.t>seen&&e.author!==state.me;})?'<button class="btn ghost sm" data-action="notif-clear">Tout marquer lu</button>':'')+'</div>';
+  if(!evs.length){ h+='<div class="empty">Pas encore d\'activité. Quand un frère poste une idée ou un commentaire, ça apparaîtra ici.</div>'; return h; }
+  h+='<div class="card" style="padding:6px 8px">';
+  evs.slice(0,80).forEach(function(e){
+    var unread=(e.t>seen&&e.author!==state.me);
+    var emo=e.kind==="idea"?"💡":"💬";
+    var title=e.kind==="idea"?((e.author||"Quelqu\'un")+" a proposé une idée"):((e.author||"Quelqu\'un")+" a commenté");
+    var body=e.kind==="idea"?truncate(e.text,140):(truncate(e.text,140)+(e.ideaText?(" — sur : « "+truncate(e.ideaText,40)+" »"):""));
+    h+='<div class="notif'+(unread?" unread":"")+'" data-action="notif-open" data-id="'+e.ideaId+'">'+
+      '<div class="nicon'+(unread?" unread":"")+'">'+emo+'</div>'+
+      '<div class="grow"><div class="ntitle">'+esc(title)+'</div><div class="nbody">'+esc(body)+'</div><div class="ntime">'+esc(relTime(e.t))+'</div></div>'+
+      (unread?'<div class="ndot" title="Non lu"></div>':'')+
+    '</div>';
+  });
+  h+='</div><p class="tiny muted center" style="margin-top:14px">Stocké sur ton appareil — chaque frère a sa propre liste de non-lus.</p>';
+  return h;
+}
 
 function viewDuties(){
   if(!state.ready)return loading();
@@ -661,7 +818,7 @@ function viewSettings(){
   h+='<h2 class="sec">Devoirs récurrents</h2><div class="card">';
   h+=state.duties.map(function(d){return '<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+'</div><span class="pill">'+(d.cadence==="per_day"?"jour":"sem")+' ×'+(d.target||1)+'</span></div>';}).join("");
   h+='<label class="lab">Nouveau devoir</label><input id="d-label" class="field" placeholder="Libellé"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter le devoir</button></div>';
-  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v2</p>';
+  h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v3 (votes + commentaires + notifs)</p>';
   return h;
 }
 
@@ -739,6 +896,12 @@ async function handle(a,el){
   if(a==="idea-task"){ var id1=parseInt(el.getAttribute("data-id"),10); var idea=state.ideas.find(function(x){return x.id===id1;}); if(idea)ideaToTask(idea); return; }
   if(a==="idea-done"){ setIdea(parseInt(el.getAttribute("data-id"),10),"faite"); return; }
   if(a==="del-idea"){ delIdea(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="vote"){ toggleVote(parseInt(el.getAttribute("data-id"),10), parseInt(el.getAttribute("data-v"),10)); return; }
+  if(a==="toggle-comments"){ var ti=parseInt(el.getAttribute("data-id"),10); state.openComments[ti]=!state.openComments[ti]; render(); return; }
+  if(a==="add-comment"){ var ci=parseInt(el.getAttribute("data-id"),10); var inp=document.getElementById("ci-"+ci); var tx=inp?inp.value:""; if(!tx.trim())return; if(inp)inp.value=""; addComment(ci,tx); return; }
+  if(a==="del-comment"){ delComment(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="notif-clear"){ markNotifSeen(); render(); return; }
+  if(a==="notif-open"){ var nid=parseInt(el.getAttribute("data-id"),10); if(nid){ state.openComments[nid]=true; } state.view="ideas"; markNotifSeen(); render(); setTimeout(function(){ var t=document.getElementById("idea-"+nid); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },50); return; }
 
   if(a==="add-member"){ addMember(val("m-name")); return; }
   if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1); return; }
@@ -746,6 +909,7 @@ async function handle(a,el){
   if(a==="logout"){ ldel("team:me"); ldel("team:code"); state.me=""; state.code=""; state.ready=false; state.onbStep="code"; render(); return; }
 }
 document.addEventListener("input",function(ev){ var id=ev.target&&ev.target.id; if(id==="a-search"||id==="rec-search"){ if(id==="a-search")state.argQuery=ev.target.value; else state.recSearch=ev.target.value; var pos=ev.target.selectionStart; render(); var nb=document.getElementById(id); if(nb){nb.focus(); try{nb.setSelectionRange(pos,pos);}catch(e){}} } });
+document.addEventListener("keydown",function(ev){ if(ev.key!=="Enter")return; var t=ev.target; if(!t||!t.id||t.id.indexOf("ci-")!==0)return; if(ev.shiftKey)return; ev.preventDefault(); var iid=parseInt(t.id.slice(3),10); var tx=t.value||""; if(!tx.trim())return; t.value=""; addComment(iid,tx); });
 
 async function loadNames(code){ try{var r=await membersFor(code); state.onbNames=(r.data||[]).map(function(m){return m.name;});}catch(e){state.onbNames=null;} }
 async function joinAs(name){ state.code=state.onbCode||state.code; state.me=name; lset("team:code",state.code); lset("team:me",name); render(); start(); }
@@ -753,7 +917,7 @@ async function joinAs(name){ state.code=state.onbCode||state.code; state.me=name
 function toggleTheme(){ var d=document.documentElement.getAttribute("data-theme")==="dark"; setTheme(d?"light":"dark"); }
 function setTheme(t){ document.documentElement.setAttribute("data-theme",t); lset("team:theme",t); var m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute("content",t==="dark"?"#15120E":"#E0795F"); }
 
-async function start(){ if(!state.code||!state.me)return; try{ client(); await ensureGroup(state.code); await refreshAll(); subscribe(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
+async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
 function init(){
   setTheme(lget("team:theme",(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"));
   if(state.code&&state.me){ state.onbStep="name"; render(); start(); }
@@ -762,7 +926,7 @@ function init(){
 }
 if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal};
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>

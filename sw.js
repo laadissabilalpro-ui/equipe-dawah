@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) */
-const CACHE = "lappel-v1";
+/* L'Appel — Équipe · service worker (PWA) — v3 (votes + commentaires + notifs) */
+const CACHE = "lappel-v3";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
@@ -46,7 +46,4 @@ self.addEventListener("fetch", (e) => {
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return r;
-      }).catch(() => cached)
-    )
-  );
-});
+     
