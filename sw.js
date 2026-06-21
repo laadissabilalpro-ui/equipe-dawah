@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v7 (vues par personne + masquage agenda) */
-const CACHE = "lappel-v7";
+/* L'Appel — Équipe · service worker (PWA) — v8 (revert : retrait des vues par personne) */
+const CACHE = "lappel-v8";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
