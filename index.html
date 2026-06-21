@@ -270,7 +270,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"",
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", personView:"all", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"",
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -353,6 +353,8 @@ async function taskUpdate(id,p){ p.updated_at=new Date().toISOString(); await cl
 async function taskDelete(id){ await client().from("team_tasks").delete().eq("id",id); await refreshAll(); }
 function taskAssignees(t){ var a=t.assignees; if(typeof a==="string"){try{a=JSON.parse(a);}catch(e){a=null;}} if(a&&a.length)return a; return t.assignee?[t.assignee]:[]; }
 function isMine(t){ return taskAssignees(t).indexOf(state.me)>=0; }
+function matchView(t){ var pv=state.personView||"all"; if(pv==="all")return true; if(pv==="common")return taskAssignees(t).length>=2; return taskAssignees(t).indexOf(pv)>=0; }
+function pviewLabel(pv){ if(pv==="all")return "Vue : tout le monde"; if(pv==="common")return "Vue : tâches communes (2 personnes ou +)"; return "Vue : "+pv; }
 async function joinTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).slice(); if(a.indexOf(state.me)<0)a.push(state.me); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
 async function leaveTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).filter(function(n){return n!==state.me;}); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
 async function addMember(name){ name=(name||"").trim(); if(!name)return; await client().from("team_members").upsert({code:state.code,name:name},{onConflict:"code,name",ignoreDuplicates:true}); await refreshAll(); }
@@ -828,22 +830,26 @@ function recitRow(r){
 
 function viewTasks(){
   if(!state.ready)return loading();
-  var opts='<option value="">— à prendre —</option>'+state.members.map(function(m){return '<option value="'+esc(m.name)+'"'+(m.name===state.me?" selected":"")+'>'+esc(m.name)+'</option>';}).join("");
   var h='<div class="card"><input id="t-title" class="field" placeholder="Nouvelle tâche (ex. monter la vidéo du vendredi)"><input id="t-note" class="field" placeholder="Note (optionnel)"><div class="row"><input id="t-date" class="field" style="margin:0" type="date"><input id="t-time" class="field" style="margin:0;width:44%" type="time"></div><label class="lab">Pour qui ? (plusieurs possibles)</label><div id="t-assignees" class="chips">'+state.members.map(function(m){return '<button class="chip2" data-action="pickassignee" data-name="'+esc(m.name)+'">'+esc(m.name)+'</button>';}).join("")+'</div><button class="btn block" data-action="add-task">Ajouter la tâche</button></div>';
-  h+='<div class="seg" style="margin-bottom:8px"><button data-action="tasktab" data-t="board" class="'+(state.taskTab==="board"?"on":"")+'">📌 Tableau</button><button data-action="tasktab" data-t="agenda" class="'+(state.taskTab==="agenda"?"on":"")+'">📅 Agenda</button></div>';
+  var pv=state.personView||"all";
+  h+='<div class="toolbar"><button class="tab2'+(pv==="all"?" on":"")+'" data-action="pview" data-v="all">👥 Tous</button>'+state.members.map(function(m){return '<button class="tab2'+(pv===m.name?" on":"")+'" data-action="pview" data-v="'+esc(m.name)+'">'+esc(m.name)+'</button>';}).join("")+'<button class="tab2'+(pv==="common"?" on":"")+'" data-action="pview" data-v="common">🤝 Communes</button></div>';
+  h+='<div class="seg" style="margin:6px 0"><button data-action="tasktab" data-t="board" class="'+(state.taskTab==="board"?"on":"")+'">📌 Tableau</button><button data-action="tasktab" data-t="agenda" class="'+(state.taskTab==="agenda"?"on":"")+'">📅 Agenda</button></div>';
+  h+='<div class="row" style="margin:0 4px 8px"><div class="grow tiny muted">'+pviewLabel(pv)+'</div><button class="btn ghost sm" data-action="togglehide">'+(state.hideDone?"👁 Afficher les faites":"🙈 Masquer les faites")+'</button></div>';
   if(state.taskTab==="agenda") return h+viewAgenda();
-  var todo=state.tasks.filter(function(t){return !t.done&&taskAssignees(t).length===0;}), doing=state.tasks.filter(function(t){return !t.done&&taskAssignees(t).length>0;}), done=state.tasks.filter(function(t){return t.done;});
-  h+='<div class="row" style="margin:0 4px 8px"><div class="grow"></div><button class="btn ghost sm" data-action="togglehide">'+(state.hideDone?"👁 Afficher les faites":"🙈 Masquer les faites")+'</button></div>';
-  h+=tsec("À prendre ("+todo.length+")",todo,"todo")+tsec("En cours ("+doing.length+")",doing,"doing")+(state.hideDone?"":tsec("Fait ("+done.length+")",done,"done"));
+  var showTodo=pv==="all";
+  var todo=showTodo?state.tasks.filter(function(t){return !t.done&&taskAssignees(t).length===0;}):[];
+  var doing=state.tasks.filter(function(t){return !t.done&&taskAssignees(t).length>0&&matchView(t);});
+  var done=state.tasks.filter(function(t){return t.done&&matchView(t);});
+  if(showTodo) h+=tsec("À prendre ("+todo.length+")",todo,"todo");
+  h+=tsec("En cours ("+doing.length+")",doing,"doing")+(state.hideDone?"":tsec("Fait ("+done.length+")",done,"done"));
   return h;
 }
 function viewAgenda(){
-  var tdy=today(), scope=state.agendaScope, day=state.agendaDay||tdy;
-  function inScope(t){return scope==="team"||isMine(t);}
-  var dated=state.tasks.filter(function(t){return t.due_date&&inScope(t);});
+  var tdy=today(), day=state.agendaDay||tdy;
+  var dated=state.tasks.filter(function(t){return t.due_date&&matchView(t);});
   var over=dated.filter(function(t){return !t.done&&t.due_date<tdy;}).sort(function(a,b){return a.due_date<b.due_date?-1:1;});
   var dayTasks=dated.filter(function(t){return t.due_date===day&&(!state.hideDone||!t.done);}).sort(function(a,b){var x=a.due_time||"99:99",y=b.due_time||"99:99";return x<y?-1:x>y?1:0;});
-  var h='<div class="seg" style="margin-bottom:8px"><button data-action="agenda-scope" data-s="team" class="'+(scope==="team"?"on":"")+'">Équipe</button><button data-action="agenda-scope" data-s="me" class="'+(scope==="me"?"on":"")+'">Moi</button></div>';
+  var h="";
   if(over.length){ h+='<h2 class="sec">⏰ En retard ('+over.length+')</h2>'; over.forEach(function(t){h+=agendaRow(t,true);}); }
   h+='<div class="weekstrip">'+week7().map(function(d){var sel=d===day,isT=d===tdy,n=dated.filter(function(t){return t.due_date===d&&!t.done;}).length;return '<button class="wday'+(sel?" sel":"")+(isT?" today":"")+'" data-action="agenda-day" data-d="'+d+'"><span class="wd">'+dowShort(d)+'</span><span class="wn">'+dayNum(d)+'</span>'+(n?'<span class="wdot">'+n+'</span>':'<span class="wdot empty"></span>')+'</button>';}).join("")+'</div>';
   h+='<h2 class="sec">'+dayLabel(day)+'</h2>';
@@ -1145,6 +1151,7 @@ async function handle(a,el){
   if(a==="togglehide"){ state.hideDone=!state.hideDone; lset("team:hideDone",state.hideDone?"1":"0"); render(); return; }
   if(a==="tasktab"){ state.taskTab=el.getAttribute("data-t"); render(); return; }
   if(a==="agenda-scope"){ state.agendaScope=el.getAttribute("data-s"); render(); return; }
+  if(a==="pview"){ state.personView=el.getAttribute("data-v"); render(); return; }
   if(a==="agenda-day"){ state.agendaDay=el.getAttribute("data-d"); render(); return; }
   if(a==="reschedule"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{due_date:el.getAttribute("data-to")}); return; }
   if(a==="open-agenda"){ state.view="tasks"; state.taskTab="agenda"; render(); return; }

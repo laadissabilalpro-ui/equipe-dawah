@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v6 (Quoi de neuf : releases + drafts) */
-const CACHE = "lappel-v6";
+/* L'Appel — Équipe · service worker (PWA) — v7 (vues par personne + masquage agenda) */
+const CACHE = "lappel-v7";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
