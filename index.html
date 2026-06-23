@@ -356,6 +356,7 @@ function isMine(t){ return taskAssignees(t).indexOf(state.me)>=0; }
 async function joinTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).slice(); if(a.indexOf(state.me)<0)a.push(state.me); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
 async function leaveTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).filter(function(n){return n!==state.me;}); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
 async function addMember(name){ name=(name||"").trim(); if(!name)return; await client().from("team_members").upsert({code:state.code,name:name},{onConflict:"code,name",ignoreDuplicates:true}); await refreshAll(); }
+async function delMember(name){ if(!name)return; if(window.confirm&&!window.confirm("Retirer "+name+" du groupe ? (ses devoirs perso seront aussi supprimés)"))return; await client().from("team_members").delete().eq("code",state.code).eq("name",name); await client().from("team_duties").delete().eq("code",state.code).eq("member",name); await refreshAll(); }
 async function addDuty(label,cadence,target,member){ label=(label||"").trim(); if(!label)return; member=member||state.me; var s=state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0)+1; await client().from("team_duties").upsert({code:state.code,member:member,label:label,cadence:cadence,target:target||1,sort:s},{onConflict:"code,member,label",ignoreDuplicates:true}); await refreshAll(); }
 async function editDuty(id,cadence,target){ await client().from("team_duties").update({cadence:cadence,target:target||1}).eq("id",id); await refreshAll(); }
 async function delDuty(id){ await client().from("team_duties").delete().eq("id",id); await refreshAll(); }
@@ -980,7 +981,7 @@ function viewSettings(){
   h+=pushSettingsCard();
   h+='<div class="card"><div class="row"><div class="grow">Mode sombre</div><button class="btn ghost sm" data-action="theme">'+(dark?"Désactiver":"Activer")+'</button></div></div>';
   h+='<h2 class="sec">Frères ('+state.members.length+')</h2><div class="card">';
-  h+=state.members.map(function(m){return '<div class="row" style="padding:5px 0"><div class="avatar" style="width:30px;height:30px;font-size:14px;background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div>';}).join("");
+  h+=state.members.map(function(m){return '<div class="row" style="padding:5px 0"><div class="avatar" style="width:30px;height:30px;font-size:14px;background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div><button class="copybtn" data-action="del-member" data-name="'+esc(m.name)+'">✕</button></div>';}).join("");
   h+='<div class="row" style="margin-top:8px"><input id="m-name" class="field" style="margin:0" placeholder="Ajouter un frère"><button class="btn sm" data-action="add-member">+</button></div></div>';
   var bro=state.dutyBro||state.me;
   h+='<h2 class="sec">Devoirs récurrents (par frère)</h2>';
@@ -1209,6 +1210,7 @@ async function handle(a,el){
   if(a==="del-draft"){ deleteDraft(parseInt(el.getAttribute("data-id"),10)); return; }
 
   if(a==="add-member"){ addMember(val("m-name")); return; }
+  if(a==="del-member"){ delMember(el.getAttribute("data-name")); return; }
   if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1,state.dutyBro||state.me); return; }
   if(a==="add-my-duty"){ addDuty(val("md-label"),val("md-cadence"),parseInt(val("md-target"),10)||1,state.me); return; }
   if(a==="duty-bro"){ state.dutyBro=el.getAttribute("data-v"); render(); return; }
