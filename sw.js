@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v10 (suppression de frères) */
-const CACHE = "lappel-v10";
+/* L'Appel — Équipe · service worker (PWA) — v11 (fix bouton « Faite » des idées) */
+const CACHE = "lappel-v11";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 

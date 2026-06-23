@@ -888,9 +888,13 @@ function viewIdeas(){
     '<div class="seg" id="i-kind-seg"><button data-action="iseg" data-k="idee" class="on">💡 Idée</button><button data-action="iseg" data-k="amelioration">🛠️ Amélioration</button></div>'+
     '<button class="btn block" data-action="add-idea">Proposer</button></div>';
   h+='<div class="toolbar">'+itab("all","Toutes")+itab("idee","💡 Idées")+itab("amelioration","🛠️ Améliorations")+'</div>';
-  var list=state.ideas.filter(function(i){return state.ideaFilter==="all"||i.kind===state.ideaFilter;});
-  if(!list.length){ h+='<div class="empty">Aucune idée — lance-toi !</div>'; return h; }
-  list.forEach(function(i){ h+=ideaCard(i); });
+  var byKind=state.ideas.filter(function(i){return state.ideaFilter==="all"||i.kind===state.ideaFilter;});
+  var active=byKind.filter(function(i){return i.status!=="faite"&&i.status!=="livree";});
+  var done=byKind.filter(function(i){return i.status==="faite"||i.status==="livree";});
+  if(!byKind.length){ h+='<div class="empty">Aucune idée — lance-toi !</div>'; return h; }
+  active.forEach(function(i){ h+=ideaCard(i); });
+  if(!active.length) h+='<div class="muted small" style="margin:0 4px 4px">Tout est terminé ✓</div>';
+  if(done.length){ h+='<h2 class="sec">✓ Terminées ('+done.length+')</h2>'; done.forEach(function(i){ h+=ideaCard(i); }); }
   return h;
 }
 function ideaCard(i){
@@ -929,8 +933,7 @@ function ideaCard(i){
     '</div>'+
     voters+thread+
     '<div class="row tiny muted" style="margin-top:10px">'+esc(i.author||"")+'<div class="grow"></div>'+
-      '<button class="copybtn" data-action="idea-task" data-id="'+i.id+'">→ Tâche</button>'+
-      '<button class="copybtn" data-action="idea-done" data-id="'+i.id+'">Faite</button>'+
+      ((i.status==="faite"||i.status==="livree")?(i.status==="faite"?'<button class="copybtn" data-action="idea-reopen" data-id="'+i.id+'">↩ Rouvrir</button>':''):('<button class="copybtn" data-action="idea-task" data-id="'+i.id+'">→ Tâche</button><button class="copybtn" data-action="idea-done" data-id="'+i.id+'">Faite</button>'))+
       '<button class="copybtn" data-action="del-idea" data-id="'+i.id+'">✕</button></div></div>';
 }
 function itab(id,label){return '<button class="tab2'+(state.ideaFilter===id?" on":"")+'" data-action="ifilter" data-f="'+id+'">'+label+'</button>';}
@@ -1190,6 +1193,7 @@ async function handle(a,el){
   if(a==="add-idea"){ var seg2=document.getElementById("i-kind-seg"); var on=seg2&&seg2.querySelector(".on"); var k=on?on.getAttribute("data-k"):"idee"; addIdea(val("i-text"),k); return; }
   if(a==="idea-task"){ var id1=parseInt(el.getAttribute("data-id"),10); var idea=state.ideas.find(function(x){return x.id===id1;}); if(idea)ideaToTask(idea); return; }
   if(a==="idea-done"){ setIdea(parseInt(el.getAttribute("data-id"),10),"faite"); return; }
+  if(a==="idea-reopen"){ setIdea(parseInt(el.getAttribute("data-id"),10),"nouvelle"); return; }
   if(a==="del-idea"){ delIdea(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="vote"){ toggleVote(parseInt(el.getAttribute("data-id"),10), parseInt(el.getAttribute("data-v"),10)); return; }
   if(a==="toggle-comments"){ var ti=parseInt(el.getAttribute("data-id"),10); state.openComments[ti]=!state.openComments[ti]; render(); return; }
