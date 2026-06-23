@@ -270,7 +270,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false,
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null,
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -360,6 +360,11 @@ async function delMember(name){ if(!name)return; if(window.confirm&&!window.conf
 async function addDuty(label,cadence,target,member){ label=(label||"").trim(); if(!label)return; member=member||state.me; var s=state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0)+1; await client().from("team_duties").upsert({code:state.code,member:member,label:label,cadence:cadence,target:target||1,sort:s},{onConflict:"code,member,label",ignoreDuplicates:true}); await refreshAll(); }
 async function editDuty(id,cadence,target){ await client().from("team_duties").update({cadence:cadence,target:target||1}).eq("id",id); await refreshAll(); }
 async function delDuty(id){ await client().from("team_duties").delete().eq("id",id); await refreshAll(); }
+function commonDuties(){ var mm={},order=[]; state.duties.forEach(function(d){ if(!d.template_key)return; if(!mm[d.template_key]){mm[d.template_key]={key:d.template_key,title:d.label,note:d.note||"",instances:[]};order.push(d.template_key);} mm[d.template_key].instances.push(d); }); return order.map(function(k){return mm[k];}); }
+function uuid4(){ try{ if(window.crypto&&crypto.randomUUID)return crypto.randomUUID(); }catch(e){} return "k"+Date.now()+"-"+Math.random().toString(16).slice(2); }
+async function addCommonDuty(title,note,members){ title=(title||"").trim(); if(!title||!members||!members.length)return; var key=uuid4(); var base=state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0)+1; var rows=members.map(function(x,i){return {code:state.code,member:x.name,label:title,note:(note||"").trim()||null,cadence:x.cadence||"per_day",target:x.target||1,sort:base+i,template_key:key};}); await client().from("team_duties").upsert(rows,{onConflict:"code,member,label",ignoreDuplicates:true}); await refreshAll(); }
+async function editCommonTitle(key,title,note){ title=(title||"").trim(); if(!title)return; await client().from("team_duties").update({label:title,note:(note||"").trim()||null}).eq("code",state.code).eq("template_key",key); state.cdEdit=null; await refreshAll(); }
+async function delCommonDuty(key){ if(window.confirm&&!window.confirm("Supprimer ce devoir commun pour tous les frères concernés ?"))return; await client().from("team_duties").delete().eq("code",state.code).eq("template_key",key); await refreshAll(); }
 
 async function addVideo(title,topic,kind,url,platform){ if(!title.trim())return; await client().from("team_videos").insert({code:state.code,title:title.trim(),topic:(topic||"").trim()||null,kind:kind||"appel",url:(url||"").trim()||null,platform:(platform||"").trim()||null,added_by:state.me}); await refreshAll(); }
 async function delVideo(id){ await client().from("team_videos").delete().eq("id",id); state.view="videos"; state.videoId=null; await refreshAll(); }
@@ -569,8 +574,14 @@ function ideasNotYetLivrees(){ return state.ideas.filter(function(i){return i.st
 function dutiesOf(m){return state.duties.filter(function(d){return d.member===m;});}
 function dailyDuties(m){m=m||state.me;return state.duties.filter(function(d){return d.member===m&&d.cadence==="per_day";});}
 function weeklyDuties(m){m=m||state.me;return state.duties.filter(function(d){return d.member===m&&d.cadence==="per_week";});}
+function monthlyDuties(m){m=m||state.me;return state.duties.filter(function(d){return d.member===m&&d.cadence==="per_month";});}
 function countOn(member,dutyId,day){var l=logFor(member,dutyId,day);return l?l.count:0;}
 function weekSum(member,dutyId){var ws=weekStart(),s=0;for(var i=0;i<state.logs.length;i++){var l=state.logs[i];if(l.member===member&&l.duty_id===dutyId&&l.day>=ws)s+=l.count;}return s;}
+function monthStart(){var d=new Date();d.setDate(1);d.setHours(0,0,0,0);return ymd(d);}
+function monthSum(member,dutyId){var ms=monthStart(),s=0;for(var i=0;i<state.logs.length;i++){var l=state.logs[i];if(l.member===member&&l.duty_id===dutyId&&l.day>=ms)s+=l.count;}return s;}
+function dutyCount(member,d){ if(d.cadence==="per_month")return monthSum(member,d.id); if(d.cadence==="per_week")return weekSum(member,d.id); return countOn(member,d.id,today()); }
+function cadLabel(c){ return c==="per_month"?"Chaque mois":(c==="per_week"?"Chaque semaine":"Chaque jour"); }
+function cadPeriodNow(c){ return c==="per_month"?"Ce mois":(c==="per_week"?"Cette semaine":"Aujourd'hui"); }
 function dayFrac(member,day){var dd=dailyDuties(member);if(!dd.length)return 0;var n=0;for(var i=0;i<dd.length;i++)if(countOn(member,dd[i].id,day)>=(dd[i].target||1))n++;return n/dd.length;}
 function membersSorted(){var a=state.members.slice();a.sort(function(x,y){if(x.name===state.me)return -1;if(y.name===state.me)return 1;return 0;});return a;}
 function repostsFor(vid){return state.reposts.filter(function(r){return r.video_id===vid;});}
@@ -682,9 +693,9 @@ function viewPoint(){
   h+='<h2 class="sec">L\'équipe</h2>';
   var days=last7();
   membersSorted().forEach(function(m){
-    var mdd=dailyDuties(m.name), mwk=weeklyDuties(m.name);
+    var mdd=dailyDuties(m.name), mwk=weeklyDuties(m.name).concat(monthlyDuties(m.name));
     var pills=mdd.map(function(d){var ok=countOn(m.name,d.id,tdy)>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓":"·")+" "+esc(shortLabel(d.label))+'</span>';}).join("");
-    var wk=mwk.map(function(d){var s=weekSum(m.name,d.id),ok=s>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+esc(shortLabel(d.label))+" "+s+"/"+(d.target||1)+'</span>';}).join("");
+    var wk=mwk.map(function(d){var s=dutyCount(m.name,d),ok=s>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+esc(shortLabel(d.label))+" "+s+"/"+(d.target||1)+'</span>';}).join("");
     if(!mdd.length&&!mwk.length){pills='<span class="tiny muted">aucun devoir</span>';}
     var strip=days.map(function(day){return '<div class="sq" title="'+day+'" style="background:'+heat(dayFrac(m.name,day))+'"></div>';}).join("");
     h+='<div class="card"><div class="row"><div class="avatar" style="background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow"><div class="ttl">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div></div><div class="dlist">'+pills+wk+'</div><div class="strip">'+strip+'</div></div>';
@@ -968,11 +979,11 @@ function viewDuties(){
   var h='<button class="back" data-action="go" data-view="point">← Le point</button><h2 class="sec">Mes devoirs — '+esc(state.me)+'</h2>';
   if(!mine.length)h+='<div class="empty">Aucun devoir. Ajoute-en un ci-dessous.</div>';
   mine.forEach(function(d){
-    var perDay=d.cadence==="per_day", cur=perDay?countOn(state.me,d.id,tdy):weekSum(state.me,d.id), tg=d.target||1, done=cur>=tg, frac=Math.min(1,cur/tg), editing=state.dutyEdit===d.id;
-    h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">'+esc(d.label)+'</div><div class="tiny muted">'+(perDay?"Chaque jour":"Chaque semaine")+' · objectif '+tg+'</div></div><div class="counter"><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="-1">−</button><div class="cval">'+cur+'</div><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="background:var(--accent);color:#fff">+</button></div></div><div class="pbar"><i style="width:'+(frac*100)+'%"></i></div>'+(done?'<div class="done-badge" style="margin-top:8px">✓ Objectif atteint</div>':'<div class="tiny muted" style="margin-top:8px">'+(perDay?"Aujourd\'hui":"Cette semaine")+' : '+cur+' / '+tg+'</div>')+
-      '<div class="row" style="margin-top:8px;gap:8px">'+(editing?('<select id="ed-cad-'+d.id+'" class="field" style="margin:0"><option value="per_day"'+(perDay?" selected":"")+'>Chaque jour</option><option value="per_week"'+(!perDay?" selected":"")+'>Chaque semaine</option></select><input id="ed-tg-'+d.id+'" class="field" style="margin:0;width:80px" type="number" min="1" value="'+tg+'"><button class="btn sm" data-action="save-duty" data-id="'+d.id+'">OK</button>'):('<div class="grow"></div><button class="copybtn" data-action="edit-duty" data-id="'+d.id+'">Fréquence</button><button class="copybtn" data-action="del-duty" data-id="'+d.id+'">Suppr</button>'))+'</div></div>';
+    var cur=dutyCount(state.me,d), tg=d.target||1, done=cur>=tg, frac=Math.min(1,cur/tg), editing=state.dutyEdit===d.id, isCommon=!!d.template_key;
+    h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">'+esc(d.label)+(isCommon?' <span class="pill" style="font-size:10px">commun</span>':"")+'</div><div class="tiny muted">'+cadLabel(d.cadence)+' · objectif '+tg+'</div></div><div class="counter"><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="-1">−</button><div class="cval">'+cur+'</div><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="background:var(--accent);color:#fff">+</button></div></div><div class="pbar"><i style="width:'+(frac*100)+'%"></i></div>'+(done?'<div class="done-badge" style="margin-top:8px">✓ Objectif atteint</div>':'<div class="tiny muted" style="margin-top:8px">'+cadPeriodNow(d.cadence)+' : '+cur+' / '+tg+'</div>')+
+      '<div class="row" style="margin-top:8px;gap:8px">'+(editing?('<select id="ed-cad-'+d.id+'" class="field" style="margin:0"><option value="per_day"'+(d.cadence==="per_day"?" selected":"")+'>Chaque jour</option><option value="per_week"'+(d.cadence==="per_week"?" selected":"")+'>Chaque semaine</option><option value="per_month"'+(d.cadence==="per_month"?" selected":"")+'>Chaque mois</option></select><input id="ed-tg-'+d.id+'" class="field" style="margin:0;width:80px" type="number" min="1" value="'+tg+'"><button class="btn sm" data-action="save-duty" data-id="'+d.id+'">OK</button>'):('<div class="grow"></div><button class="copybtn" data-action="edit-duty" data-id="'+d.id+'">Fréquence</button><button class="copybtn" data-action="del-duty" data-id="'+d.id+'">Suppr</button>'))+'</div></div>';
   });
-  h+='<h2 class="sec">Ajouter un devoir</h2><div class="card"><input id="md-label" class="field" placeholder="Libellé (ex. Lire 1 page)"><div class="row"><select id="md-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="md-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-my-duty" style="margin-top:8px">Ajouter</button></div>';
+  h+='<h2 class="sec">Ajouter un devoir</h2><div class="card"><input id="md-label" class="field" placeholder="Libellé (ex. Lire 1 page)"><div class="row"><select id="md-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option><option value="per_month">Chaque mois</option></select><input id="md-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-my-duty" style="margin-top:8px">Ajouter</button></div>';
   return h;
 }
 
@@ -992,8 +1003,18 @@ function viewSettings(){
   h+='<div class="card"><div class="tiny muted" style="margin-bottom:6px">Devoirs de <b>'+esc(bro)+'</b> — chacun sa fréquence.</div>';
   var bd=state.duties.filter(function(d){return d.member===bro;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
   if(!bd.length) h+='<div class="muted small">Aucun devoir pour '+esc(bro)+'.</div>';
-  bd.forEach(function(d){h+='<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+'</div><span class="pill">'+(d.cadence==="per_day"?"jour":"sem")+' ×'+(d.target||1)+'</span><button class="copybtn" data-action="del-duty" data-id="'+d.id+'">✕</button></div>';});
-  h+='<label class="lab">Assigner / créer un devoir pour '+esc(bro)+'</label><input id="d-label" class="field" placeholder="Libellé (ex. Réciter, Poster une vidéo…)"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter pour '+esc(bro)+'</button></div>';
+  bd.forEach(function(d){h+='<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+(d.template_key?' <span class="pill" style="font-size:10px">commun</span>':"")+'</div><span class="pill">'+(d.cadence==="per_month"?"mois":(d.cadence==="per_week"?"sem":"jour"))+' ×'+(d.target||1)+'</span><button class="copybtn" data-action="del-duty" data-id="'+d.id+'">✕</button></div>';});
+  h+='<label class="lab">Assigner / créer un devoir pour '+esc(bro)+'</label><input id="d-label" class="field" placeholder="Libellé (ex. Réciter, Poster une vidéo…)"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option><option value="per_month">Chaque mois</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter pour '+esc(bro)+'</button></div>';
+  h+='<h2 class="sec">🤝 Devoirs communs</h2>';
+  var commons=commonDuties();
+  if(commons.length){ h+='<div class="card">'; commons.forEach(function(cd){
+    var freqs=cd.instances.map(function(d){return esc(d.member)+' ('+(d.cadence==="per_month"?"mois":(d.cadence==="per_week"?"sem":"jour"))+'×'+(d.target||1)+')';}).join(" · ");
+    h+='<div style="padding:6px 0;border-bottom:1px solid var(--line)">';
+    if(state.cdEdit===cd.key){ h+='<input id="cde-title" class="field" value="'+esc(cd.title)+'"><input id="cde-note" class="field" placeholder="Description" value="'+esc(cd.note||"")+'"><div class="row" style="gap:6px"><button class="btn sm" data-action="cd-save" data-k="'+esc(cd.key)+'">Enregistrer</button><button class="copybtn" data-action="cd-edit-cancel">Annuler</button></div>'; }
+    else { h+='<div class="row"><div class="grow"><b>'+esc(cd.title)+'</b>'+(cd.note?'<div class="tiny muted">'+esc(cd.note)+'</div>':"")+'</div><button class="copybtn" data-action="cd-edit" data-k="'+esc(cd.key)+'">Titre</button><button class="copybtn" data-action="cd-del" data-k="'+esc(cd.key)+'">✕</button></div>'; }
+    h+='<div class="tiny muted" style="margin-top:3px">'+freqs+'</div></div>';
+  }); h+='</div>'; }
+  h+='<div class="card"><div class="ttl" style="margin-bottom:4px">+ Nouveau devoir commun</div><input id="cd-title" class="field" placeholder="Titre (ex. Réciter Al-Kahf le vendredi)"><input id="cd-note" class="field" placeholder="Description (optionnel)"><div class="tiny muted" style="margin:4px 2px">Coche les frères et règle la fréquence de chacun :</div>'+state.members.map(function(mm,idx){return '<div class="row" style="gap:6px;margin:4px 0"><button class="chip2" data-action="cd-toggle" data-i="'+idx+'">'+esc(mm.name)+'</button><select id="cd-cad-'+idx+'" class="field" style="margin:0;flex:1"><option value="per_day">Quotidien</option><option value="per_week">Hebdo</option><option value="per_month">Mensuel</option></select><input id="cd-tg-'+idx+'" class="field" style="margin:0;width:64px" type="number" min="1" value="1"></div>';}).join("")+'<button class="btn block" data-action="add-common-duty" style="margin-top:6px">Créer pour les frères cochés</button></div>';
   h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v6 (Quoi de neuf)</p>';
   return h;
 }
@@ -1218,6 +1239,12 @@ async function handle(a,el){
   if(a==="del-member"){ delMember(el.getAttribute("data-name")); return; }
   if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1,state.dutyBro||state.me); return; }
   if(a==="add-my-duty"){ addDuty(val("md-label"),val("md-cadence"),parseInt(val("md-target"),10)||1,state.me); return; }
+  if(a==="cd-toggle"){ el.classList.toggle("on"); return; }
+  if(a==="add-common-duty"){ var cms=[]; state.members.forEach(function(mm,idx){ var chip=document.querySelector('[data-action="cd-toggle"][data-i="'+idx+'"]'); if(chip&&chip.classList.contains("on")){ cms.push({name:mm.name,cadence:val("cd-cad-"+idx)||"per_day",target:parseInt(val("cd-tg-"+idx),10)||1}); } }); if(!cms.length){ if(window.alert)alert("Coche au moins un frère."); return; } addCommonDuty(val("cd-title"),val("cd-note"),cms); return; }
+  if(a==="cd-edit"){ state.cdEdit=el.getAttribute("data-k"); render(); return; }
+  if(a==="cd-edit-cancel"){ state.cdEdit=null; render(); return; }
+  if(a==="cd-save"){ editCommonTitle(el.getAttribute("data-k"),val("cde-title"),val("cde-note")); return; }
+  if(a==="cd-del"){ delCommonDuty(el.getAttribute("data-k")); return; }
   if(a==="duty-bro"){ state.dutyBro=el.getAttribute("data-v"); render(); return; }
   if(a==="edit-duty"){ state.dutyEdit=parseInt(el.getAttribute("data-id"),10); render(); return; }
   if(a==="save-duty"){ var did=parseInt(el.getAttribute("data-id"),10); editDuty(did,val("ed-cad-"+did),parseInt(val("ed-tg-"+did),10)||1); state.dutyEdit=null; return; }

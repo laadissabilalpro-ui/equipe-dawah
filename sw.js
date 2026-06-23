@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v12 (idées terminées masquées par défaut) */
-const CACHE = "lappel-v12";
+/* L'Appel — Équipe · service worker (PWA) — v13 (devoirs communs multi-fréquences) */
+const CACHE = "lappel-v13";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
