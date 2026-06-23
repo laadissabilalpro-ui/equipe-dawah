@@ -270,7 +270,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"",
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null,
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -294,9 +294,9 @@ async function ensureGroup(code){
   var m=await c.from("team_members").select("name").eq("code",code);
   if(!m.error && (!m.data||m.data.length===0))
     await c.from("team_members").upsert(DEFAULT_MEMBERS.map(function(n){return {code:code,name:n};}),{onConflict:"code,name",ignoreDuplicates:true});
-  var d=await c.from("team_duties").select("id").eq("code",code);
+  var d=await c.from("team_duties").select("id").eq("code",code).eq("member",state.me);
   if(!d.error && (!d.data||d.data.length===0))
-    await c.from("team_duties").upsert(DEFAULT_DUTIES.map(function(x){return {code:code,label:x.label,cadence:x.cadence,target:x.target,sort:x.sort};}),{onConflict:"code,label",ignoreDuplicates:true});
+    await c.from("team_duties").upsert(DEFAULT_DUTIES.map(function(x){return {code:code,member:state.me,label:x.label,cadence:x.cadence,target:x.target,sort:x.sort};}),{onConflict:"code,member,label",ignoreDuplicates:true});
   var r=await c.from("team_recitations").select("id").eq("code",code);
   if(!r.error && (!r.data||r.data.length===0))
     await c.from("team_recitations").upsert(DEFAULT_RECITS.map(function(x,i){return {code:code,label:recitLabel(x),surah:x.s,ayah:x.a||null,ayah_end:x.a2||null,sort:i};}),{onConflict:"code,label",ignoreDuplicates:true});
@@ -356,7 +356,9 @@ function isMine(t){ return taskAssignees(t).indexOf(state.me)>=0; }
 async function joinTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).slice(); if(a.indexOf(state.me)<0)a.push(state.me); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
 async function leaveTask(id){ var t=state.tasks.find(function(x){return x.id===id;}); if(!t)return; var a=taskAssignees(t).filter(function(n){return n!==state.me;}); await client().from("team_tasks").update({assignees:a,assignee:a[0]||null,updated_at:new Date().toISOString()}).eq("id",id); await refreshAll(); }
 async function addMember(name){ name=(name||"").trim(); if(!name)return; await client().from("team_members").upsert({code:state.code,name:name},{onConflict:"code,name",ignoreDuplicates:true}); await refreshAll(); }
-async function addDuty(label,cadence,target){ label=(label||"").trim(); if(!label)return; var s=state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0)+1; await client().from("team_duties").upsert({code:state.code,label:label,cadence:cadence,target:target||1,sort:s},{onConflict:"code,label",ignoreDuplicates:true}); await refreshAll(); }
+async function addDuty(label,cadence,target,member){ label=(label||"").trim(); if(!label)return; member=member||state.me; var s=state.duties.reduce(function(m,d){return Math.max(m,d.sort||0);},0)+1; await client().from("team_duties").upsert({code:state.code,member:member,label:label,cadence:cadence,target:target||1,sort:s},{onConflict:"code,member,label",ignoreDuplicates:true}); await refreshAll(); }
+async function editDuty(id,cadence,target){ await client().from("team_duties").update({cadence:cadence,target:target||1}).eq("id",id); await refreshAll(); }
+async function delDuty(id){ await client().from("team_duties").delete().eq("id",id); await refreshAll(); }
 
 async function addVideo(title,topic,kind,url,platform){ if(!title.trim())return; await client().from("team_videos").insert({code:state.code,title:title.trim(),topic:(topic||"").trim()||null,kind:kind||"appel",url:(url||"").trim()||null,platform:(platform||"").trim()||null,added_by:state.me}); await refreshAll(); }
 async function delVideo(id){ await client().from("team_videos").delete().eq("id",id); state.view="videos"; state.videoId=null; await refreshAll(); }
@@ -563,11 +565,12 @@ function onLiveReleasePublished(row, old){
 function ideasNotYetLivrees(){ return state.ideas.filter(function(i){return i.status!=="livree";}); }
 
 /* ---------- Computations ---------- */
-function dailyDuties(){return state.duties.filter(function(d){return d.cadence==="per_day";});}
-function weeklyDuties(){return state.duties.filter(function(d){return d.cadence==="per_week";});}
+function dutiesOf(m){return state.duties.filter(function(d){return d.member===m;});}
+function dailyDuties(m){m=m||state.me;return state.duties.filter(function(d){return d.member===m&&d.cadence==="per_day";});}
+function weeklyDuties(m){m=m||state.me;return state.duties.filter(function(d){return d.member===m&&d.cadence==="per_week";});}
 function countOn(member,dutyId,day){var l=logFor(member,dutyId,day);return l?l.count:0;}
 function weekSum(member,dutyId){var ws=weekStart(),s=0;for(var i=0;i<state.logs.length;i++){var l=state.logs[i];if(l.member===member&&l.duty_id===dutyId&&l.day>=ws)s+=l.count;}return s;}
-function dayFrac(member,day){var dd=dailyDuties();if(!dd.length)return 0;var n=0;for(var i=0;i<dd.length;i++)if(countOn(member,dd[i].id,day)>=(dd[i].target||1))n++;return n/dd.length;}
+function dayFrac(member,day){var dd=dailyDuties(member);if(!dd.length)return 0;var n=0;for(var i=0;i<dd.length;i++)if(countOn(member,dd[i].id,day)>=(dd[i].target||1))n++;return n/dd.length;}
 function membersSorted(){var a=state.members.slice();a.sort(function(x,y){if(x.name===state.me)return -1;if(y.name===state.me)return 1;return 0;});return a;}
 function repostsFor(vid){return state.reposts.filter(function(r){return r.video_id===vid;});}
 function argsFor(vid){return state.args.filter(function(a){return a.video_id===vid;});}
@@ -643,7 +646,7 @@ function loading(){return '<div class="empty fade">Synchronisation…</div>';}
 /* ----- Le point (hub) ----- */
 function viewPoint(){
   if(!state.ready)return loading();
-  var dd=dailyDuties(), tdy=today();
+  var dd=dailyDuties(state.me), tdy=today();
   var vids=state.videos.length, rec=recitsLeft(), ide=ideasNew(), openTasks=state.tasks.filter(function(t){return !t.done;}).length;
   var h='<div class="momento">'+
     momo(state.videos.filter(function(v){return v.kind==="appel";}).length,"📣 Appels à reposter")+
@@ -678,8 +681,10 @@ function viewPoint(){
   h+='<h2 class="sec">L\'équipe</h2>';
   var days=last7();
   membersSorted().forEach(function(m){
-    var pills=dd.map(function(d){var ok=countOn(m.name,d.id,tdy)>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓":"·")+" "+esc(shortLabel(d.label))+'</span>';}).join("");
-    var wk=weeklyDuties().map(function(d){var s=weekSum(m.name,d.id),ok=s>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+esc(shortLabel(d.label))+" "+s+"/"+(d.target||1)+'</span>';}).join("");
+    var mdd=dailyDuties(m.name), mwk=weeklyDuties(m.name);
+    var pills=mdd.map(function(d){var ok=countOn(m.name,d.id,tdy)>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓":"·")+" "+esc(shortLabel(d.label))+'</span>';}).join("");
+    var wk=mwk.map(function(d){var s=weekSum(m.name,d.id),ok=s>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+esc(shortLabel(d.label))+" "+s+"/"+(d.target||1)+'</span>';}).join("");
+    if(!mdd.length&&!mwk.length){pills='<span class="tiny muted">aucun devoir</span>';}
     var strip=days.map(function(day){return '<div class="sq" title="'+day+'" style="background:'+heat(dayFrac(m.name,day))+'"></div>';}).join("");
     h+='<div class="card"><div class="row"><div class="avatar" style="background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow"><div class="ttl">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div></div><div class="dlist">'+pills+wk+'</div><div class="strip">'+strip+'</div></div>';
   });
@@ -955,12 +960,15 @@ function viewNotifs(){
 function viewDuties(){
   if(!state.ready)return loading();
   var tdy=today();
+  var mine=state.duties.filter(function(d){return d.member===state.me;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
   var h='<button class="back" data-action="go" data-view="point">← Le point</button><h2 class="sec">Mes devoirs — '+esc(state.me)+'</h2>';
-  if(!state.duties.length)h+='<div class="empty">Aucun devoir.</div>';
-  state.duties.forEach(function(d){
-    var perDay=d.cadence==="per_day", cur=perDay?countOn(state.me,d.id,tdy):weekSum(state.me,d.id), tg=d.target||1, done=cur>=tg, frac=Math.min(1,cur/tg);
-    h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">'+esc(d.label)+'</div><div class="tiny muted">'+(perDay?"Chaque jour":"Chaque semaine")+' · objectif '+tg+'</div></div><div class="counter"><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="-1">−</button><div class="cval">'+cur+'</div><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="background:var(--accent);color:#fff">+</button></div></div><div class="pbar"><i style="width:'+(frac*100)+'%"></i></div>'+(done?'<div class="done-badge" style="margin-top:8px">✓ Objectif atteint</div>':'<div class="tiny muted" style="margin-top:8px">'+(perDay?"Aujourd\'hui":"Cette semaine")+' : '+cur+' / '+tg+'</div>')+'</div>';
+  if(!mine.length)h+='<div class="empty">Aucun devoir. Ajoute-en un ci-dessous.</div>';
+  mine.forEach(function(d){
+    var perDay=d.cadence==="per_day", cur=perDay?countOn(state.me,d.id,tdy):weekSum(state.me,d.id), tg=d.target||1, done=cur>=tg, frac=Math.min(1,cur/tg), editing=state.dutyEdit===d.id;
+    h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">'+esc(d.label)+'</div><div class="tiny muted">'+(perDay?"Chaque jour":"Chaque semaine")+' · objectif '+tg+'</div></div><div class="counter"><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="-1">−</button><div class="cval">'+cur+'</div><button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="background:var(--accent);color:#fff">+</button></div></div><div class="pbar"><i style="width:'+(frac*100)+'%"></i></div>'+(done?'<div class="done-badge" style="margin-top:8px">✓ Objectif atteint</div>':'<div class="tiny muted" style="margin-top:8px">'+(perDay?"Aujourd\'hui":"Cette semaine")+' : '+cur+' / '+tg+'</div>')+
+      '<div class="row" style="margin-top:8px;gap:8px">'+(editing?('<select id="ed-cad-'+d.id+'" class="field" style="margin:0"><option value="per_day"'+(perDay?" selected":"")+'>Chaque jour</option><option value="per_week"'+(!perDay?" selected":"")+'>Chaque semaine</option></select><input id="ed-tg-'+d.id+'" class="field" style="margin:0;width:80px" type="number" min="1" value="'+tg+'"><button class="btn sm" data-action="save-duty" data-id="'+d.id+'">OK</button>'):('<div class="grow"></div><button class="copybtn" data-action="edit-duty" data-id="'+d.id+'">Fréquence</button><button class="copybtn" data-action="del-duty" data-id="'+d.id+'">Suppr</button>'))+'</div></div>';
   });
+  h+='<h2 class="sec">Ajouter un devoir</h2><div class="card"><input id="md-label" class="field" placeholder="Libellé (ex. Lire 1 page)"><div class="row"><select id="md-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="md-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-my-duty" style="margin-top:8px">Ajouter</button></div>';
   return h;
 }
 
@@ -974,9 +982,14 @@ function viewSettings(){
   h+='<h2 class="sec">Frères ('+state.members.length+')</h2><div class="card">';
   h+=state.members.map(function(m){return '<div class="row" style="padding:5px 0"><div class="avatar" style="width:30px;height:30px;font-size:14px;background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div>';}).join("");
   h+='<div class="row" style="margin-top:8px"><input id="m-name" class="field" style="margin:0" placeholder="Ajouter un frère"><button class="btn sm" data-action="add-member">+</button></div></div>';
-  h+='<h2 class="sec">Devoirs récurrents</h2><div class="card">';
-  h+=state.duties.map(function(d){return '<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+'</div><span class="pill">'+(d.cadence==="per_day"?"jour":"sem")+' ×'+(d.target||1)+'</span></div>';}).join("");
-  h+='<label class="lab">Nouveau devoir</label><input id="d-label" class="field" placeholder="Libellé"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter le devoir</button></div>';
+  var bro=state.dutyBro||state.me;
+  h+='<h2 class="sec">Devoirs récurrents (par frère)</h2>';
+  h+='<div class="toolbar">'+state.members.map(function(mm){return '<button class="tab2'+(bro===mm.name?" on":"")+'" data-action="duty-bro" data-v="'+esc(mm.name)+'">'+esc(mm.name)+'</button>';}).join("")+'</div>';
+  h+='<div class="card"><div class="tiny muted" style="margin-bottom:6px">Devoirs de <b>'+esc(bro)+'</b> — chacun sa fréquence.</div>';
+  var bd=state.duties.filter(function(d){return d.member===bro;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
+  if(!bd.length) h+='<div class="muted small">Aucun devoir pour '+esc(bro)+'.</div>';
+  bd.forEach(function(d){h+='<div class="row" style="padding:5px 0"><div class="grow">'+esc(d.label)+'</div><span class="pill">'+(d.cadence==="per_day"?"jour":"sem")+' ×'+(d.target||1)+'</span><button class="copybtn" data-action="del-duty" data-id="'+d.id+'">✕</button></div>';});
+  h+='<label class="lab">Assigner / créer un devoir pour '+esc(bro)+'</label><input id="d-label" class="field" placeholder="Libellé (ex. Réciter, Poster une vidéo…)"><div class="row"><select id="d-cadence" class="field" style="margin:0"><option value="per_day">Chaque jour</option><option value="per_week">Chaque semaine</option></select><input id="d-target" class="field" style="margin:0;width:90px" type="number" min="1" value="1"></div><button class="btn sm block" data-action="add-duty" style="margin-top:8px">Ajouter pour '+esc(bro)+'</button></div>';
   h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v6 (Quoi de neuf)</p>';
   return h;
 }
@@ -1196,7 +1209,12 @@ async function handle(a,el){
   if(a==="del-draft"){ deleteDraft(parseInt(el.getAttribute("data-id"),10)); return; }
 
   if(a==="add-member"){ addMember(val("m-name")); return; }
-  if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1); return; }
+  if(a==="add-duty"){ addDuty(val("d-label"),val("d-cadence"),parseInt(val("d-target"),10)||1,state.dutyBro||state.me); return; }
+  if(a==="add-my-duty"){ addDuty(val("md-label"),val("md-cadence"),parseInt(val("md-target"),10)||1,state.me); return; }
+  if(a==="duty-bro"){ state.dutyBro=el.getAttribute("data-v"); render(); return; }
+  if(a==="edit-duty"){ state.dutyEdit=parseInt(el.getAttribute("data-id"),10); render(); return; }
+  if(a==="save-duty"){ var did=parseInt(el.getAttribute("data-id"),10); editDuty(did,val("ed-cad-"+did),parseInt(val("ed-tg-"+did),10)||1); state.dutyEdit=null; return; }
+  if(a==="del-duty"){ delDuty(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="switch-me"){ state.me=""; ldel("team:me"); state.onbStep="name"; state.onbCode=state.code; await loadNames(state.code); renderOnboard(); return; }
   if(a==="logout"){ ldel("team:me"); ldel("team:code"); state.me=""; state.code=""; state.ready=false; state.onbStep="code"; render(); return; }
 }
