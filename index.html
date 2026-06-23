@@ -270,7 +270,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null,
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false,
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -894,7 +894,7 @@ function viewIdeas(){
   if(!byKind.length){ h+='<div class="empty">Aucune idée — lance-toi !</div>'; return h; }
   active.forEach(function(i){ h+=ideaCard(i); });
   if(!active.length) h+='<div class="muted small" style="margin:0 4px 4px">Tout est terminé ✓</div>';
-  if(done.length){ h+='<h2 class="sec">✓ Terminées ('+done.length+')</h2>'; done.forEach(function(i){ h+=ideaCard(i); }); }
+  if(done.length){ h+='<div class="row" style="margin:14px 4px 6px"><div class="grow"></div><button class="btn ghost sm" data-action="toggle-done-ideas">'+(state.showDoneIdeas?"Masquer les terminées":"Voir terminées ("+done.length+")")+'</button></div>'; if(state.showDoneIdeas){ done.forEach(function(i){ h+=ideaCard(i); }); } }
   return h;
 }
 function ideaCard(i){
@@ -1147,7 +1147,7 @@ document.addEventListener("click",function(ev){
 async function handle(a,el){
   if(a==="theme"){ toggleTheme(); render(); return; }
   if(a==="retry"){ state.error=""; render(); start(); return; }
-  if(a==="go"){ state.view=el.getAttribute("data-view"); state.videoId=null; state.sheet=false; render(); return; }
+  if(a==="go"){ var gv=el.getAttribute("data-view"); if(gv==="ideas")state.showDoneIdeas=false; state.view=gv; state.videoId=null; state.sheet=false; render(); return; }
   if(a==="sheet-close"){ state.sheet=false; render(); return; }
 
   if(a==="code-next"){ var c=val("ob-code").trim(); if(!c)return; state.onbCode=c; await loadNames(c); state.onbStep="name"; renderOnboard(); return; }
@@ -1194,6 +1194,7 @@ async function handle(a,el){
   if(a==="idea-task"){ var id1=parseInt(el.getAttribute("data-id"),10); var idea=state.ideas.find(function(x){return x.id===id1;}); if(idea)ideaToTask(idea); return; }
   if(a==="idea-done"){ setIdea(parseInt(el.getAttribute("data-id"),10),"faite"); return; }
   if(a==="idea-reopen"){ setIdea(parseInt(el.getAttribute("data-id"),10),"nouvelle"); return; }
+  if(a==="toggle-done-ideas"){ state.showDoneIdeas=!state.showDoneIdeas; render(); return; }
   if(a==="del-idea"){ delIdea(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="vote"){ toggleVote(parseInt(el.getAttribute("data-id"),10), parseInt(el.getAttribute("data-v"),10)); return; }
   if(a==="toggle-comments"){ var ti=parseInt(el.getAttribute("data-id"),10); state.openComments[ti]=!state.openComments[ti]; render(); return; }
