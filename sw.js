@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v15 (catalogue chaîne FR via API + bouton « message groupe ») */
-const CACHE = "lappel-v15";
+/* L'Appel — Équipe · service worker (PWA) — v16 (Vidéos/Shorts séparés + tri chrono + synchro auto + suppr. manuelle) */
+const CACHE = "lappel-v16";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 

@@ -272,7 +272,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1",
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"),
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -378,7 +378,7 @@ async function addCommonDuty(title,note,members){ title=(title||"").trim(); if(!
 async function editCommonTitle(key,title,note){ title=(title||"").trim(); if(!title)return; await client().from("team_duties").update({label:title,note:(note||"").trim()||null}).eq("code",state.code).eq("template_key",key); state.cdEdit=null; await refreshAll(); }
 async function delCommonDuty(key){ if(window.confirm&&!window.confirm("Supprimer ce devoir commun pour tous les frères concernés ?"))return; await client().from("team_duties").delete().eq("code",state.code).eq("template_key",key); await refreshAll(); }
 
-async function addVideo(title,topic,kind,url,platform){ if(!title.trim())return; var u=(url||"").trim()||null; var yid=ytId(u); await client().from("team_videos").insert({code:state.code,title:title.trim(),topic:(topic||"").trim()||null,kind:kind||"appel",url:u,platform:(platform||"").trim()||null,yt_id:yid||null,thumbnail_url:yid?ytThumb(yid):null,added_by:state.me}); await refreshAll(); }
+async function addVideo(title,topic,kind,url,platform){ if(!title.trim())return; var u=(url||"").trim()||null; var yid=ytId(u); await client().from("team_videos").insert({code:state.code,title:title.trim(),topic:(topic||"").trim()||null,kind:kind||"appel",url:u,platform:(platform||"").trim()||null,yt_id:yid||null,thumbnail_url:yid?ytThumb(yid):null,is_short:(/\/shorts\//.test(u||"")||null),added_by:state.me}); await refreshAll(); }
 async function delVideo(id){ await client().from("team_videos").delete().eq("id",id); state.view="videos"; state.videoId=null; await refreshAll(); }
 async function toggleRepost(videoId,platform){
   var ex=state.reposts.find(function(r){return r.video_id===videoId&&r.member===state.me&&r.platform===platform;});
@@ -393,6 +393,7 @@ async function unlinkArg(argId,videoId){ await client().from("team_argument_vide
 async function addDlService(name,tpl){ name=(name||"").trim(); tpl=(tpl||"").trim(); if(!name||!tpl)return; var s=(state.dlServices||[]).reduce(function(m,x){return Math.max(m,x.sort||0);},0)+1; await client().from("team_dl_services").insert({code:state.code,name:name,url_template:tpl,sort:s,added_by:state.me}); await refreshAll(); }
 async function delDlService(id){ await client().from("team_dl_services").delete().eq("id",id); await refreshAll(); }
 async function setDlServiceActive(id,active){ await client().from("team_dl_services").update({active:active}).eq("id",id); await refreshAll(); }
+async function setShort(id,val){ await client().from("team_videos").update({is_short:val}).eq("id",id); await refreshAll(); }
 async function moveSvcUp(id){ var ss=(state.dlServices||[]).slice().sort(function(a,b){return (a.sort||0)-(b.sort||0);}); var i=-1; ss.forEach(function(x,k){if(x.id===id)i=k;}); if(i<=0)return; var A=ss[i],B=ss[i-1]; await client().from("team_dl_services").update({sort:B.sort}).eq("id",A.id); await client().from("team_dl_services").update({sort:A.sort}).eq("id",B.id); await refreshAll(); }
 async function addRecit(surah,ayah,ayah_end,by){ surah=surah||null; if(!surah)return; var lbl=recitLabel({s:surah,a:ayah||null,a2:ayah_end||null}); var s=state.recits.reduce(function(m,r){return Math.max(m,r.sort||0);},0)+1; await client().from("team_recitations").upsert({code:state.code,label:lbl,surah:surah,ayah:ayah||null,ayah_end:ayah_end||null,done:true,done_by:by||null,sort:s},{onConflict:"code,label",ignoreDuplicates:true}); await refreshAll(); }
 async function toggleRecit(id,done){ await client().from("team_recitations").update({done:done,done_by:done?state.me:null}).eq("id",id); await refreshAll(); }
@@ -618,26 +619,40 @@ function groupMessage(v){
   var link=v.url||(v.yt_id?("https://www.youtube.com/watch?v="+v.yt_id):"");
   return "J'ai posté sur "+pstr+" celle-ci grâce à Allah 🤲\n\n"+(v.title||"")+(link?("\n"+link):"");
 }
-async function syncChannel(ch){
-  if(!ch){ showToast("Aucune chaîne configurée."); return; }
-  var key=lget("team:ytkey",""); if(!key){ showToast("Ajoute d'abord ta clé API YouTube (Réglages)."); return; }
-  var pid=ch.uploads_playlist_id; if(!pid){ showToast("Playlist de la chaîne manquante."); return; }
-  showToast("Synchronisation en cours…");
-  var existing={}; (state.videos||[]).forEach(function(v){ if(v.yt_id)existing[v.yt_id]=1; });
-  var token="",pages=0,toAdd=[];
+function parseDur(iso){ var m=/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(iso||""); if(!m)return 0; return (parseInt(m[1]||0,10)*3600)+(parseInt(m[2]||0,10)*60)+parseInt(m[3]||0,10); }
+async function syncChannel(ch, silent){
+  if(!ch){ if(!silent)showToast("Aucune chaîne configurée."); return; }
+  var key=lget("team:ytkey",""); if(!key){ if(!silent)showToast("Ajoute d'abord ta clé API YouTube (Réglages)."); return; }
+  var pid=ch.uploads_playlist_id; if(!pid){ if(!silent)showToast("Playlist de la chaîne manquante."); return; }
+  lset("team:lastsync",String(Date.now()));
+  if(!silent)showToast("Synchronisation en cours…");
+  var known={}; (state.videos||[]).forEach(function(v){ if(v.yt_id)known[v.yt_id]=v; });
+  var token="",pages=0,toAdd=[],byId={},needDur={};
   try{
     do{
       var u="https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId="+encodeURIComponent(pid)+"&key="+encodeURIComponent(key)+(token?("&pageToken="+token):"");
       var r=await fetch(u); var j=await r.json();
-      if(j.error){ showToast("Erreur API : "+(j.error.message||"clé invalide ?")); return; }
-      (j.items||[]).forEach(function(it){ var sn=it.snippet||{}; var vid=sn.resourceId&&sn.resourceId.videoId; if(!vid||existing[vid])return; existing[vid]=1; var th=sn.thumbnails||{}; toAdd.push({code:state.code,title:sn.title||"(sans titre)",url:"https://www.youtube.com/watch?v="+vid,yt_id:vid,thumbnail_url:(th.high||th.medium||th.default||{}).url||null,channel_key:ch.key,kind:"appel",published_at:sn.publishedAt||null,added_by:state.me}); });
+      if(j.error){ if(!silent)showToast("Erreur API : "+(j.error.message||"clé invalide ?")); return; }
+      (j.items||[]).forEach(function(it){ var sn=it.snippet||{}; var vid=sn.resourceId&&sn.resourceId.videoId; if(!vid)return; var ex=known[vid];
+        if(!ex){ var th=sn.thumbnails||{}; var row={code:state.code,title:sn.title||"(sans titre)",url:"https://www.youtube.com/watch?v="+vid,yt_id:vid,thumbnail_url:(th.high||th.medium||th.default||{}).url||null,channel_key:ch.key,kind:"appel",published_at:sn.publishedAt||null,is_short:null,added_by:state.me}; toAdd.push(row); byId[vid]=row; needDur[vid]=1; known[vid]=row; }
+        else if(ex.is_short===null||ex.is_short===undefined){ needDur[vid]=1; }
+      });
       token=j.nextPageToken||""; pages++;
-    } while(token && pages<25);
+    } while(token && pages<40);
+    var durIds=Object.keys(needDur), shortIds=[], longIds=[];
+    for(var b=0;b<durIds.length;b+=50){
+      try{ var du="https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id="+durIds.slice(b,b+50).join(",")+"&key="+encodeURIComponent(key); var dr=await fetch(du); var dj=await dr.json(); (dj.items||[]).forEach(function(it){ var sec=parseDur(it.contentDetails&&it.contentDetails.duration); var isS=(sec>0&&sec<=60); if(byId[it.id])byId[it.id].is_short=isS; if(isS)shortIds.push(it.id); else longIds.push(it.id); }); }catch(e2){}
+    }
     for(var i=0;i<toAdd.length;i+=100){ await client().from("team_videos").insert(toAdd.slice(i,i+100)); }
-    showToast("✅ "+toAdd.length+" nouvelle(s) vidéo(s) importée(s).");
+    var newIds={}; toAdd.forEach(function(r){newIds[r.yt_id]=1;});
+    var updS=shortIds.filter(function(id){return !newIds[id];}), updL=longIds.filter(function(id){return !newIds[id];});
+    for(var k=0;k<updS.length;k+=120){ await client().from("team_videos").update({is_short:true}).eq("code",state.code).in("yt_id",updS.slice(k,k+120)); }
+    for(var k2=0;k2<updL.length;k2+=120){ await client().from("team_videos").update({is_short:false}).eq("code",state.code).in("yt_id",updL.slice(k2,k2+120)); }
+    if(toAdd.length || !silent) showToast("✅ "+toAdd.length+" ajoutée(s), "+(updS.length+updL.length)+" reclassées.");
     await refreshAll();
-  }catch(e){ showToast("Erreur de synchro : "+(e&&e.message||e)); }
+  }catch(e){ if(!silent)showToast("Erreur de synchro : "+(e&&e.message||e)); }
 }
+function maybeAutoSync(){ try{ var ch=(state.channels||[])[0]; if(!ch)return; if(!lget("team:ytkey",""))return; var last=parseInt(lget("team:lastsync","0"),10)||0; if(Date.now()-last < 1800000) return; syncChannel(ch, true); }catch(e){} }
 function recitsLeft(){return state.recits.filter(function(r){return !r.done;}).length;}
 function ideasNew(){return state.ideas.filter(function(i){return i.status==="nouvelle";}).length;}
 function shortLabel(s){return String(s).replace(/\s*\(.*?\)\s*/g,"").replace("Poster 1–2 vidéos","Vidéos").replace("Partager l'appel","Appel").replace("Point hebdo équipe","Point hebdo").replace("Réciter","Récit.");}
@@ -777,25 +792,33 @@ function viewVideos(){
   var vq=state.videoSearch.toLowerCase().trim();
   var list=state.videos.filter(function(v){ if(state.videoFilter!=="all"&&v.kind!==state.videoFilter)return false; if(vq){var hay=((v.title||"")+" "+(v.topic||"")).toLowerCase(); if(hay.indexOf(vq)<0)return false;} return true; });
   if(!list.length){ h+='<div class="empty">'+(vq?"Aucune vidéo ne correspond.":"Aucune vidéo ici pour l\'instant.")+'</div>'; return h; }
-  var svc=curDlService(), owner=ownerPlats(state.me);
-  list.forEach(function(v){
-    var rp=repostsFor(v.id), na=argsFor(v.id).length, yid=v.yt_id||ytId(v.url), thumb=v.thumbnail_url||ytThumb(yid);
-    var plats=PLATFORMS.map(function(p){var mineOn=rp.some(function(r){return r.platform===p&&r.member===state.me;});var cnt=rp.filter(function(r){return r.platform===p;}).length;var own=owner.indexOf(p)>=0;return '<button class="plat'+(mineOn?" on":"")+'" data-action="repost" data-video="'+v.id+'" data-plat="'+esc(p)+'"'+((own&&!mineOn)?' style="box-shadow:0 0 0 2px var(--accent) inset"':"")+'>'+(own?"★ ":"")+esc(p)+(cnt?" ·"+cnt:"")+'</button>';}).join("");
-    h+='<div class="card vid">'+
-      (thumb?'<div style="border-radius:10px;overflow:hidden;margin-bottom:8px;background:rgba(0,0,0,.06)"><img src="'+esc(thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover"></div>':"")+
-      '<div class="ttl">'+esc(v.title)+'</div>'+
-      '<div class="tagrow" style="margin-top:5px">'+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(v.kind==="appel"?"📣 Appel":v.kind==="mensongere"?"⚠️ Réponse":"Autre")+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div>'+
-      '<div class="row" style="gap:7px;margin-top:8px;flex-wrap:wrap">'+
-        (v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+
-        ((svc&&(v.url||yid))?'<a class="btn sm" href="'+esc(dlURL(svc,v))+'" target="_blank" rel="noopener">⬇ Télécharger ('+esc(svc.name)+')</a>':"")+
-        ((v.url||yid)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+'<button class="btn ghost sm" data-action="copy-msg" data-video="'+v.id+'">📋 Message groupe</button>'+
-      '</div>'+
-      ((state.dlPickFor===v.id)?dlPicker(v):"")+
-      (v.kind==="appel"?'<div><div class="tiny muted" style="margin-top:8px">Reposté sur :</div><div class="platrow">'+plats+'</div></div>':"")+
-      '<button class="btn line sm" data-action="open-video" data-id="'+v.id+'" style="align-self:flex-start;margin-top:6px">Détails / argumentaires'+(na?" ("+na+")":"")+'</button>'+
-    '</div>';
-  });
+  var dir=(state.vidSort==="old")?1:-1;
+  function vdate(v){ return v.published_at||v.created_at||""; }
+  list.sort(function(a,b){ var da=vdate(a),db=vdate(b); return da<db?(-1*dir):(da>db?dir:0); });
+  var shorts=list.filter(isShort), vids=list.filter(function(v){return !isShort(v);});
+  h+='<div class="row" style="margin:0 2px 6px;align-items:center"><div class="tiny muted grow">'+list.length+' vidéo(s)</div><button class="btn ghost sm" data-action="vid-sort">'+(state.vidSort==="old"?"↑ Plus anciennes":"↓ Plus récentes")+'</button></div>';
+  if(vids.length){ h+='<h2 class="sec">🎬 Vidéos ('+vids.length+')</h2>'; vids.forEach(function(v){ h+=videoCard(v); }); }
+  if(shorts.length){ h+='<h2 class="sec">⚡ Shorts ('+shorts.length+')</h2>'; shorts.forEach(function(v){ h+=videoCard(v); }); }
   return h;
+}
+function isShort(v){ if(v.is_short===true)return true; if(v.is_short===false)return false; return /\/shorts\//.test(v.url||""); }
+function videoCard(v){
+  var svc=curDlService(), owner=ownerPlats(state.me);
+  var rp=repostsFor(v.id), na=argsFor(v.id).length, yid=v.yt_id||ytId(v.url), thumb=v.thumbnail_url||ytThumb(yid), sht=isShort(v);
+  var plats=PLATFORMS.map(function(p){var mineOn=rp.some(function(r){return r.platform===p&&r.member===state.me;});var cnt=rp.filter(function(r){return r.platform===p;}).length;var own=owner.indexOf(p)>=0;return '<button class="plat'+(mineOn?" on":"")+'" data-action="repost" data-video="'+v.id+'" data-plat="'+esc(p)+'"'+((own&&!mineOn)?' style="box-shadow:0 0 0 2px var(--accent) inset"':"")+'>'+(own?"★ ":"")+esc(p)+(cnt?" ·"+cnt:"")+'</button>';}).join("");
+  return '<div class="card vid">'+
+    (thumb?'<div style="border-radius:10px;overflow:hidden;margin-bottom:8px;background:rgba(0,0,0,.06)"><img src="'+esc(thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover"></div>':"")+
+    '<div class="ttl">'+esc(v.title)+'</div>'+
+    '<div class="tagrow" style="margin-top:5px">'+(sht?'<span class="pill" style="background:var(--accent);color:#fff">⚡ Short</span>':"")+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(v.kind==="appel"?"📣 Appel":v.kind==="mensongere"?"⚠️ Réponse":"Autre")+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div>'+
+    '<div class="row" style="gap:7px;margin-top:8px;flex-wrap:wrap">'+
+      (v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+
+      ((svc&&(v.url||yid))?'<button class="btn sm" data-action="dl-copy" data-video="'+v.id+'">📋 Copier le lien</button>':"")+
+      ((v.url||yid)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+'<button class="btn ghost sm" data-action="copy-msg" data-video="'+v.id+'">📋 Message groupe</button>'+
+    '</div>'+
+    ((state.dlPickFor===v.id)?dlPicker(v):"")+
+    (v.kind==="appel"?'<div><div class="tiny muted" style="margin-top:8px">Reposté sur :</div><div class="platrow">'+plats+'</div></div>':"")+
+    '<div class="row" style="gap:7px;margin-top:6px;align-items:center"><button class="btn line sm" data-action="open-video" data-id="'+v.id+'">Détails / argumentaires'+(na?" ("+na+")":"")+'</button>'+(v.channel_key?"":'<button class="copybtn" data-action="del-video" data-id="'+v.id+'" title="Supprimer cette vidéo">🗑</button>')+'</div>'+
+  '</div>';
 }
 function tab2(id,label){return '<button class="tab2'+(state.videoFilter===id?" on":"")+'" data-action="vfilter" data-f="'+id+'">'+label+'</button>';}
 function dlPicker(v){
@@ -812,8 +835,8 @@ function viewVideoDetail(){
   var h='<button class="back" data-action="go" data-view="videos">← Vidéos</button>';
   h+='<div class="card"><div class="ttl" style="font-size:18px">'+esc(v.title)+'</div>'+
     '<div class="tagrow" style="margin-top:6px">'+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(KIND_LABEL[v.kind]||v.kind)+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div>'+
-    '<div class="row" style="gap:7px;margin-top:10px;flex-wrap:wrap">'+(v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+((curDlService()&&(v.url||v.yt_id))?'<a class="btn sm" href="'+esc(dlURL(curDlService(),v))+'" target="_blank" rel="noopener">⬇ Télécharger ('+esc(curDlService().name)+')</a>':"")+((v.url||v.yt_id)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+'<button class="btn ghost sm" data-action="copy-msg" data-video="'+v.id+'">📋 Message groupe</button>'+'</div>'+((state.dlPickFor===v.id)?dlPicker(v):"")+
-    '<div class="tiny muted" style="margin-top:8px">Ajoutée par '+esc(v.added_by||"?")+'</div></div>';
+    '<div class="row" style="gap:7px;margin-top:10px;flex-wrap:wrap">'+(v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+((curDlService()&&(v.url||v.yt_id))?'<button class="btn sm" data-action="dl-copy" data-video="'+v.id+'">📋 Copier le lien</button>':"")+((v.url||v.yt_id)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+'<button class="btn ghost sm" data-action="copy-msg" data-video="'+v.id+'">📋 Message groupe</button>'+'</div>'+((state.dlPickFor===v.id)?dlPicker(v):"")+
+    '<div class="tiny muted" style="margin-top:8px">Ajoutée par '+esc(v.added_by||"?")+'</div><button class="btn ghost sm" data-action="set-short" data-id="'+v.id+'" data-v="'+(isShort(v)?"0":"1")+'" style="margin-top:8px">'+(isShort(v)?"🎬 C'est une vidéo (pas un Short)":"⚡ Marquer comme Short")+'</button></div>';
   if(v.kind==="appel"){
     h+='<h2 class="sec">Reposts de l\'équipe</h2><div class="card">';
     var byP={}; rp.forEach(function(r){(byP[r.platform]=byP[r.platform]||[]).push(r.member);});
@@ -1252,7 +1275,7 @@ document.addEventListener("click",function(ev){
 async function handle(a,el){
   if(a==="theme"){ toggleTheme(); render(); return; }
   if(a==="retry"){ state.error=""; render(); start(); return; }
-  if(a==="go"){ var gv=el.getAttribute("data-view"); if(gv==="ideas")state.showDoneIdeas=false; state.view=gv; state.videoId=null; state.sheet=false; render(); return; }
+  if(a==="go"){ var gv=el.getAttribute("data-view"); if(gv==="ideas")state.showDoneIdeas=false; state.view=gv; state.videoId=null; state.sheet=false; render(); if(gv==="videos")maybeAutoSync(); return; }
   if(a==="sheet-close"){ state.sheet=false; render(); return; }
 
   if(a==="code-next"){ var c=val("ob-code").trim(); if(!c)return; state.onbCode=c; await loadNames(c); state.onbStep="name"; renderOnboard(); return; }
@@ -1279,7 +1302,7 @@ async function handle(a,el){
   if(a==="vfilter"){ state.videoFilter=el.getAttribute("data-f"); render(); return; }
   if(a==="add-video"){ addVideo(val("v-title"),val("v-topic"),val("v-kind"),val("v-url"),val("v-platform")); return; }
   if(a==="open-video"){ state.videoId=parseInt(el.getAttribute("data-id"),10); state.view="videoDetail"; render(); return; }
-  if(a==="del-video"){ delVideo(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="del-video"){ if(window.confirm&&!window.confirm("Supprimer définitivement cette vidéo ?"))return; delVideo(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="repost"){ toggleRepost(parseInt(el.getAttribute("data-video"),10),el.getAttribute("data-plat")); return; }
 
   if(a==="add-arg"){ addArgument(val("a-topic"),val("a-title"),val("a-body"),val("a-ref"),null); return; }
@@ -1298,6 +1321,9 @@ async function handle(a,el){
   if(a==="svc-up"){ moveSvcUp(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="copy-arg"){ var ar=state.args.find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); if(ar){copyText(ar.body||"");el.textContent="Copié ✓";} return; }
   if(a==="copy-msg"){ var mv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(mv){ copyText(groupMessage(mv)); el.textContent="Message copié ✓"; } return; }
+  if(a==="vid-sort"){ state.vidSort=(state.vidSort==="old")?"recent":"old"; lset("team:vidsort",state.vidSort); render(); return; }
+  if(a==="set-short"){ setShort(parseInt(el.getAttribute("data-id"),10), el.getAttribute("data-v")==="1"); return; }
+  if(a==="dl-copy"){ var dcv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(!dcv)return; var yurl=dcv.url||(dcv.yt_id?("https://www.youtube.com/watch?v="+dcv.yt_id):""); if(el.getAttribute("data-armed")==="1"){ var svc2=curDlService(); if(svc2&&window.open)window.open(dlURL(svc2,dcv),"_blank"); el.setAttribute("data-armed","0"); el.textContent="📋 Copier le lien"; } else { copyText(yurl); showToast("Lien copié ✓ — ouvre le site puis colle-le (coller / Ctrl+V)"); el.setAttribute("data-armed","1"); el.textContent="⬇ Ouvrir le site & coller"; } return; }
   if(a==="save-ytkey"){ lset("team:ytkey",val("yt-key")||""); showToast("Clé enregistrée ✓"); render(); return; }
   if(a==="sync-channel"){ syncChannel((state.channels||[])[0]); return; }
 
