@@ -138,7 +138,7 @@
   .back{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--accent);margin-bottom:6px}
   .empty{text-align:center;color:var(--muted);padding:26px 10px}
 
-  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:saturate(1.4) blur(10px);border-top:1px solid var(--line);display:flex;max-width:560px;margin:0 auto;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);display:flex;max-width:560px;margin:0 auto;padding:8px 6px calc(8px + env(safe-area-inset-bottom));-webkit-transform:translateZ(0);transform:translateZ(0)}
   .nav-i{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px;font-weight:700;padding:4px 2px;border-radius:12px}
   .nav-i.on{color:var(--accent)}
   .nav-i svg{width:23px;height:23px}
@@ -272,7 +272,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"),
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), ideaSort:lget("team:ideasort","prio"),
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -401,6 +401,7 @@ async function delRecit(id){ await client().from("team_recitations").delete().eq
 async function addIdea(text,kind){ if(!text.trim())return; await client().from("team_ideas").insert({code:state.code,text:text.trim(),kind:kind||"idee",author:state.me}); await refreshAll(); }
 async function ideaToTask(idea){ await client().from("team_tasks").insert({code:state.code,title:idea.text,note:(idea.kind==="amelioration"?"Amélioration":"Idée")+" · "+(idea.author||""),created_by:state.me}); await client().from("team_ideas").update({status:"retenue"}).eq("id",idea.id); state.view="tasks"; await refreshAll(); }
 async function setIdea(id,status){ await client().from("team_ideas").update({status:status}).eq("id",id); await refreshAll(); }
+async function setPriority(id,p){ await client().from("team_ideas").update({priority:p}).eq("id",id); await refreshAll(); }
 async function delIdea(id){ await client().from("team_ideas").delete().eq("id",id); await refreshAll(); }
 
 /* ---------- Votes & commentaires (v3) ---------- */
@@ -997,13 +998,21 @@ function viewIdeas(){
   var active=byKind.filter(function(i){return i.status!=="faite"&&i.status!=="livree";});
   var done=byKind.filter(function(i){return i.status==="faite"||i.status==="livree";});
   if(!byKind.length){ h+='<div class="empty">Aucune idée — lance-toi !</div>'; return h; }
+  var prioOn=prioEnabled();
+  if(!prioOn || state.ideaSort==="date"){ active.sort(function(a,b){return (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0);}); }
+  else { active.sort(function(a,b){ var pa=(a.priority!=null?a.priority:2), pb=(b.priority!=null?b.priority:2); if(pb!==pa)return pb-pa; return (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0); }); }
+  if(prioOn && active.length){ h+='<div class="row" style="margin:0 4px 8px;align-items:center"><div class="tiny muted grow">'+active.length+' active(s) · tri '+(state.ideaSort==="date"?"par date":"par priorité")+'</div><button class="btn ghost sm" data-action="idea-sort">'+(state.ideaSort==="date"?"↕ Priorité":"↕ Date")+'</button></div>'; }
   active.forEach(function(i){ h+=ideaCard(i); });
   if(!active.length) h+='<div class="muted small" style="margin:0 4px 4px">Tout est terminé ✓</div>';
   if(done.length){ h+='<div class="row" style="margin:14px 4px 6px"><div class="grow"></div><button class="btn ghost sm" data-action="toggle-done-ideas">'+(state.showDoneIdeas?"Masquer les terminées":"Voir terminées ("+done.length+")")+'</button></div>'; if(state.showDoneIdeas){ done.forEach(function(i){ h+=ideaCard(i); }); } }
   return h;
 }
+var PRIOS=[{v:4,emoji:"🔴",label:"Critique",col:"#E5484D"},{v:3,emoji:"🟠",label:"Haute",col:"#E0795F"},{v:2,emoji:"🟡",label:"Moyenne",col:"#E2A03F"},{v:1,emoji:"🟢",label:"Basse",col:"#4E9A6B"}];
+function prioOf(i){ var p=(i&&i.priority!=null)?i.priority:2; for(var k=0;k<PRIOS.length;k++)if(PRIOS[k].v===p)return PRIOS[k]; return PRIOS[2]; }
+function prioEnabled(){ return (state.ideas||[]).some(function(i){return i.priority!=null;}); }
 function ideaCard(i){
   var vs=votesFor(i.id);
+  var pr=prioOf(i), pe=prioEnabled();
   var ups=vs.filter(function(v){return v.value===1;});
   var dns=vs.filter(function(v){return v.value===-1;});
   var mv=myVote(i.id);
@@ -1029,7 +1038,7 @@ function ideaCard(i){
   }
   var rel = releaseForIdea(i.id);
   var statusPill = i.status==="livree" ? '<span class="pill on">✓ Livrée</span>' : (i.status!=="nouvelle" ? '<span class="tiny muted">'+esc(i.status)+'</span>' : '');
-  return '<div class="idea'+(i.kind==="amelioration"?" amel":"")+'" id="idea-'+i.id+'"><div class="row"><span class="pill '+(i.kind==="amelioration"?"info":"")+'">'+(i.kind==="amelioration"?"🛠️ Amélioration":"💡 Idée")+'</span><div class="grow"></div>'+statusPill+'</div>'+    (rel ? '<div><span class="relbadge" data-action="open-release" data-id="'+rel.id+'">✨ Livré dans : '+esc(truncate(rel.title||"",40))+'</span></div>' : '')+
+  return '<div class="idea'+(i.kind==="amelioration"?" amel":"")+'" id="idea-'+i.id+'"'+(pe?(' style="border-left:4px solid '+pr.col+'"'):'')+'><div class="row"><span class="pill '+(i.kind==="amelioration"?"info":"")+'">'+(i.kind==="amelioration"?"🛠️ Amélioration":"💡 Idée")+'</span>'+(pe?('<span class="pill" style="margin-left:5px;background:'+pr.col+'22;border:1px solid '+pr.col+'66">'+pr.emoji+' '+pr.label+'</span>'):'')+'<div class="grow"></div>'+statusPill+'</div>'+    (rel ? '<div><span class="relbadge" data-action="open-release" data-id="'+rel.id+'">✨ Livré dans : '+esc(truncate(rel.title||"",40))+'</span></div>' : '')+
     '<div style="margin:8px 0;word-break:break-word">'+esc(i.text)+'</div>'+
     '<div class="vrow">'+
       '<button class="vbtn'+(mine===1?" on up":"")+'" data-action="vote" data-id="'+i.id+'" data-v="1" aria-label="Pour">👍 <span class="vcount">'+ups.length+'</span></button>'+
@@ -1037,6 +1046,7 @@ function ideaCard(i){
       '<button class="ctoggle" data-action="toggle-comments" data-id="'+i.id+'">💬 '+cms.length+(open?" · masquer":" · commenter")+'</button>'+
     '</div>'+
     voters+thread+
+    ((pe&&i.status!=="faite"&&i.status!=="livree")?'<div class="row" style="gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center"><span class="tiny muted">Priorité :</span>'+PRIOS.map(function(x){return '<button class="copybtn" data-action="set-prio" data-id="'+i.id+'" data-p="'+x.v+'" title="'+x.label+'"'+(x.v===pr.v?(' style="background:'+x.col+';color:#fff;border-color:'+x.col+'"'):'')+'>'+x.emoji+'</button>';}).join("")+'</div>':'')+
     '<div class="row tiny muted" style="margin-top:10px">'+esc(i.author||"")+'<div class="grow"></div>'+
       ((i.status==="faite"||i.status==="livree")?(i.status==="faite"?'<button class="copybtn" data-action="idea-reopen" data-id="'+i.id+'">↩ Rouvrir</button>':''):('<button class="copybtn" data-action="idea-task" data-id="'+i.id+'">→ Tâche</button><button class="copybtn" data-action="idea-done" data-id="'+i.id+'">Faite</button>'))+
       '<button class="copybtn" data-action="del-idea" data-id="'+i.id+'">✕</button></div></div>';
@@ -1340,6 +1350,8 @@ async function handle(a,el){
   if(a==="idea-done"){ setIdea(parseInt(el.getAttribute("data-id"),10),"faite"); return; }
   if(a==="idea-reopen"){ setIdea(parseInt(el.getAttribute("data-id"),10),"nouvelle"); return; }
   if(a==="toggle-done-ideas"){ state.showDoneIdeas=!state.showDoneIdeas; render(); return; }
+  if(a==="set-prio"){ setPriority(parseInt(el.getAttribute("data-id"),10), parseInt(el.getAttribute("data-p"),10)); return; }
+  if(a==="idea-sort"){ state.ideaSort=(state.ideaSort==="date"?"prio":"date"); lset("team:ideasort",state.ideaSort); render(); return; }
   if(a==="del-idea"){ delIdea(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="vote"){ toggleVote(parseInt(el.getAttribute("data-id"),10), parseInt(el.getAttribute("data-v"),10)); return; }
   if(a==="toggle-comments"){ var ti=parseInt(el.getAttribute("data-id"),10); state.openComments[ti]=!state.openComments[ti]; render(); return; }
