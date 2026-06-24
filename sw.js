@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v20 (suggestions récitations par groupes de versets ≤ 1 min 30) */
-const CACHE = "lappel-v20";
+/* L'Appel — Équipe · service worker (PWA) — v21 (bannières : import + téléchargement multi-format recadré) */
+const CACHE = "lappel-v21";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
