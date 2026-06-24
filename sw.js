@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v17 (priorité des idées + fix barre onglets) */
-const CACHE = "lappel-v17";
+/* L'Appel — Équipe · service worker (PWA) — v18 (fix compteur récitations restantes) */
+const CACHE = "lappel-v18";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
