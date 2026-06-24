@@ -251,6 +251,11 @@ function recitLabel(x){ var nm=surahName(x.s); if(!x.a)return nm; return nm+" v.
 var AYAH_COUNTS=[7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
 function ayahTotal(s){ return (s&&AYAH_COUNTS[s-1])||0; }
 function quranTotal(){ var t=0; for(var s=1;s<=114;s++)t+=ayahTotal(s); return t; }
+function cachedLens(su){ try{ var c=lget("ql:"+su,""); return c?JSON.parse(c):null; }catch(e){ return null; } }
+async function fetchLens(su){ var c=cachedLens(su); if(c){ state.verseLens[su]=c; return c; } try{ var r=await fetch("https://api.quran.com/api/v4/verses/by_chapter/"+su+"?fields=text_uthmani&per_page=300"); var j=await r.json(); var arr=(j.verses||[]).map(function(v){return (v.text_uthmani||"").length;}); if(arr.length){ try{lset("ql:"+su,JSON.stringify(arr));}catch(_){} state.verseLens[su]=arr; } return arr; }catch(e){ return null; } }
+function recitedSet(su){ var set={},tot=ayahTotal(su); state.recits.filter(function(r){return r.surah===su&&r.done;}).forEach(function(r){ if(!r.ayah){ for(var i=1;i<=tot;i++)set[i]=1; } else { var a=r.ayah,b=(r.ayah_end&&r.ayah_end>=a)?r.ayah_end:a; for(var i=a;i<=b;i++)set[i]=1; } }); return set; }
+function suggestGroups(su,lns){ var done=recitedSet(su), tot=lns.length||ayahTotal(su), RATE=7, TARGET=65, MAX=90, CAP=5, out=[], a=1, guard=0; while(a<=tot && out.length<5 && guard++<3000){ if(done[a]){ a++; continue; } var start=a, dur=0, n=0, b=a; while(b<=tot && !done[b] && n<CAP){ var vd=(lns[b-1]||80)/RATE; if(n>0 && (dur+vd)>MAX) break; dur+=vd; n++; b++; if(dur>=TARGET) break; } out.push({surah:su, from:start, to:b-1, dur:Math.round(dur), n:n}); a=b; } return out; }
+function durLabel(sec){ if(sec<60) return "≈ "+sec+" s"; var m=Math.floor(sec/60), r=sec%60; return "≈ "+m+" min"+(r?(" "+(r<10?"0":"")+r):""); }
 function versesCovered(){ var n=0; for(var sn=1;sn<=114;sn++){ var ps=state.recits.filter(function(r){return r.surah===sn&&r.done;}); if(!ps.length)continue; var t=ayahTotal(sn); if(ps.some(function(r){return !r.ayah;})){ n+=t; continue; } var m={}; ps.forEach(function(r){var a=r.ayah,b=(r.ayah_end&&r.ayah_end>=a)?r.ayah_end:a; for(var i=a;i<=b;i++)m[i]=1;}); var c=Object.keys(m).length; if(t)c=Math.min(c,t); n+=c; } return n; }
 function fmtN(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g," "); }
 function surahStat(sn){
@@ -275,7 +280,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), ideaSort:lget("team:ideasort","prio"),
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, _sgLoad:null,
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -899,9 +904,18 @@ function viewRecits(){
   var STAT={}; for(var i=1;i<=114;i++)STAT[i]=surahStat(i);
   var nComplete=0; for(var j=1;j<=114;j++)if(STAT[j].complete)nComplete++;
   var h='<div class="card"><div class="row"><div class="grow"><div class="ttl">Le Coran — récitations</div><div class="tiny muted">'+nComplete+'/114 sourates complètes. Touche une sourate pour la réciter.</div></div><span class="pill '+(nComplete>=114?"on":"warn")+'">'+nComplete+'/114</span></div><div class="pbar" style="margin-top:10px"><i style="width:'+Math.round(nComplete/114*100)+'%"></i></div><div class="row" style="margin-top:10px"><div class="tiny muted grow">📖 '+fmtN(versesCovered())+' / '+fmtN(quranTotal())+' versets récités</div></div><div class="pbar"><i style="width:'+Math.round(versesCovered()/quranTotal()*100)+'%"></i></div></div>';
-  var sugg=[]; for(var s2=1;s2<=114&&sugg.length<6;s2++){ if(!STAT[s2].complete) sugg.push(s2); }
-  if(sugg.length){
-    h+='<h2 class="sec">À réciter — suggestions</h2><div class="tagrow" style="margin:0 2px 6px">'+sugg.map(function(s){var st=STAT[s];return '<a class="plat" href="'+esc(quranLink(s))+'" target="_blank" rel="noopener">'+s+". "+esc(surahName(s))+(st.started?(" · reste "+(st.total-st.covered)+" v."):" · à faire")+' ↗</a>';}).join("")+'</div>';
+  var sg=null; for(var s2=1;s2<=114;s2++){ if(!STAT[s2].complete){ sg=s2; break; } }
+  if(sg){
+    h+='<h2 class="sec">À réciter — suggestions (≈ 1 à 1 min 30)</h2>';
+    var lns=state.verseLens[sg]||cachedLens(sg); if(lns&&!state.verseLens[sg])state.verseLens[sg]=lns;
+    if(lns){
+      var grps=suggestGroups(sg,lns);
+      if(grps.length){ h+='<div class="tagrow" style="margin:0 2px 6px">'+grps.map(function(g){return '<a class="plat" href="'+esc(quranLink(g.surah,g.from,g.to))+'" target="_blank" rel="noopener">'+esc(surahName(g.surah))+' '+g.from+(g.to>g.from?("-"+g.to):"")+' · '+durLabel(g.dur)+' ↗</a>';}).join("")+'</div><div class="tiny muted" style="margin:2px 4px 6px">Groupes calibrés pour ~1 à 1 min 30 par récitation.</div>'; }
+      else { h+='<div class="muted small" style="margin:0 4px 6px">Sourate complétée — passe à la suivante.</div>'; }
+    } else {
+      h+='<div class="muted small" style="margin:0 4px 6px">⏳ Préparation des suggestions…</div>';
+      if(state._sgLoad!==sg){ state._sgLoad=sg; fetchLens(sg).then(function(){ state._sgLoad=null; render(); }); }
+    }
   }
   var byOpts=state.members.map(function(m){return '<option value="'+esc(m.name)+'"'+(m.name===state.me?" selected":"")+'>'+esc(m.name)+'</option>';}).join("")+'<option value="__autre__">Autre (proche)…</option>';
   h+='<div class="card"><div class="ttl" style="margin-bottom:4px">Marquer un passage récité</div>'+

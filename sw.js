@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v19 (compteur versets non récités / 6236) */
-const CACHE = "lappel-v19";
+/* L'Appel — Équipe · service worker (PWA) — v20 (suggestions récitations par groupes de versets ≤ 1 min 30) */
+const CACHE = "lappel-v20";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
