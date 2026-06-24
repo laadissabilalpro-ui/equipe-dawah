@@ -302,6 +302,9 @@ async function ensureGroup(code){
   var sv=await c.from("team_dl_services").select("id").eq("code",code);
   if(!sv.error && (!sv.data||sv.data.length===0))
     await c.from("team_dl_services").insert(DL_DEFAULTS.map(function(x,i){return {code:code,name:x.name,url_template:x.url_template,sort:i+1,added_by:state.me};}));
+  var ych=await c.from("team_channels").select("id").eq("code",code);
+  if(!ych.error && (!ych.data||ych.data.length===0))
+    await c.from("team_channels").insert({code:code,key:"fr",label:"APPEL À LA VOIE DE L'ETERNEL",yt_channel_id:"UCACocfp6U4qC3ZiLE90rIHw",uploads_playlist_id:"UUACocfp6U4qC3ZiLE90rIHw",lang:"fr",active:true,sort:1});
   var r=await c.from("team_recitations").select("id").eq("code",code);
   if(!r.error && (!r.data||r.data.length===0))
     await c.from("team_recitations").upsert(DEFAULT_RECITS.map(function(x,i){return {code:code,label:recitLabel(x),surah:x.s,ayah:x.a||null,ayah_end:x.a2||null,sort:i};}),{onConflict:"code,label",ignoreDuplicates:true});
@@ -608,6 +611,33 @@ function dlServices(){ return (state.dlServices||[]).filter(function(s){return s
 function curDlService(){ var ss=dlServices(); return ss.length?ss[0]:null; }
 function dlURL(svc,v){ if(!svc)return ""; var id=v.yt_id||ytId(v.url); var yurl=v.url||(id?("https://www.youtube.com/watch?v="+id):""); return String(svc.url_template||"").replace(/\{url\}/g,encodeURIComponent(yurl)).replace(/\{id\}/g,encodeURIComponent(id)); }
 function ownerPlats(m){ return OWNER[m||state.me]||[]; }
+function groupMessage(v){
+  var mine=repostsFor(v.id).filter(function(r){return r.member===state.me;}).map(function(r){return r.platform;});
+  var plats=mine.length?mine:ownerPlats(state.me);
+  var pstr=plats.length?plats.join(" et "):"ma plateforme";
+  var link=v.url||(v.yt_id?("https://www.youtube.com/watch?v="+v.yt_id):"");
+  return "J'ai posté sur "+pstr+" celle-ci grâce à Allah 🤲\n\n"+(v.title||"")+(link?("\n"+link):"");
+}
+async function syncChannel(ch){
+  if(!ch){ showToast("Aucune chaîne configurée."); return; }
+  var key=lget("team:ytkey",""); if(!key){ showToast("Ajoute d'abord ta clé API YouTube (Réglages)."); return; }
+  var pid=ch.uploads_playlist_id; if(!pid){ showToast("Playlist de la chaîne manquante."); return; }
+  showToast("Synchronisation en cours…");
+  var existing={}; (state.videos||[]).forEach(function(v){ if(v.yt_id)existing[v.yt_id]=1; });
+  var token="",pages=0,toAdd=[];
+  try{
+    do{
+      var u="https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId="+encodeURIComponent(pid)+"&key="+encodeURIComponent(key)+(token?("&pageToken="+token):"");
+      var r=await fetch(u); var j=await r.json();
+      if(j.error){ showToast("Erreur API : "+(j.error.message||"clé invalide ?")); return; }
+      (j.items||[]).forEach(function(it){ var sn=it.snippet||{}; var vid=sn.resourceId&&sn.resourceId.videoId; if(!vid||existing[vid])return; existing[vid]=1; var th=sn.thumbnails||{}; toAdd.push({code:state.code,title:sn.title||"(sans titre)",url:"https://www.youtube.com/watch?v="+vid,yt_id:vid,thumbnail_url:(th.high||th.medium||th.default||{}).url||null,channel_key:ch.key,kind:"appel",published_at:sn.publishedAt||null,added_by:state.me}); });
+      token=j.nextPageToken||""; pages++;
+    } while(token && pages<25);
+    for(var i=0;i<toAdd.length;i+=100){ await client().from("team_videos").insert(toAdd.slice(i,i+100)); }
+    showToast("✅ "+toAdd.length+" nouvelle(s) vidéo(s) importée(s).");
+    await refreshAll();
+  }catch(e){ showToast("Erreur de synchro : "+(e&&e.message||e)); }
+}
 function recitsLeft(){return state.recits.filter(function(r){return !r.done;}).length;}
 function ideasNew(){return state.ideas.filter(function(i){return i.status==="nouvelle";}).length;}
 function shortLabel(s){return String(s).replace(/\s*\(.*?\)\s*/g,"").replace("Poster 1–2 vidéos","Vidéos").replace("Partager l'appel","Appel").replace("Point hebdo équipe","Point hebdo").replace("Réciter","Récit.");}
@@ -758,7 +788,7 @@ function viewVideos(){
       '<div class="row" style="gap:7px;margin-top:8px;flex-wrap:wrap">'+
         (v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+
         ((svc&&(v.url||yid))?'<a class="btn sm" href="'+esc(dlURL(svc,v))+'" target="_blank" rel="noopener">⬇ Télécharger ('+esc(svc.name)+')</a>':"")+
-        ((v.url||yid)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+
+        ((v.url||yid)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+'<button class="btn ghost sm" data-action="copy-msg" data-video="'+v.id+'">📋 Message groupe</button>'+
       '</div>'+
       ((state.dlPickFor===v.id)?dlPicker(v):"")+
       (v.kind==="appel"?'<div><div class="tiny muted" style="margin-top:8px">Reposté sur :</div><div class="platrow">'+plats+'</div></div>':"")+
@@ -782,7 +812,7 @@ function viewVideoDetail(){
   var h='<button class="back" data-action="go" data-view="videos">← Vidéos</button>';
   h+='<div class="card"><div class="ttl" style="font-size:18px">'+esc(v.title)+'</div>'+
     '<div class="tagrow" style="margin-top:6px">'+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(KIND_LABEL[v.kind]||v.kind)+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div>'+
-    '<div class="row" style="gap:7px;margin-top:10px;flex-wrap:wrap">'+(v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+((curDlService()&&(v.url||v.yt_id))?'<a class="btn sm" href="'+esc(dlURL(curDlService(),v))+'" target="_blank" rel="noopener">⬇ Télécharger ('+esc(curDlService().name)+')</a>':"")+((v.url||v.yt_id)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+'</div>'+((state.dlPickFor===v.id)?dlPicker(v):"")+
+    '<div class="row" style="gap:7px;margin-top:10px;flex-wrap:wrap">'+(v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+((curDlService()&&(v.url||v.yt_id))?'<a class="btn sm" href="'+esc(dlURL(curDlService(),v))+'" target="_blank" rel="noopener">⬇ Télécharger ('+esc(curDlService().name)+')</a>':"")+((v.url||v.yt_id)?'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':"")+'<button class="btn ghost sm" data-action="copy-msg" data-video="'+v.id+'">📋 Message groupe</button>'+'</div>'+((state.dlPickFor===v.id)?dlPicker(v):"")+
     '<div class="tiny muted" style="margin-top:8px">Ajoutée par '+esc(v.added_by||"?")+'</div></div>';
   if(v.kind==="appel"){
     h+='<h2 class="sec">Reposts de l\'équipe</h2><div class="card">';
@@ -1064,6 +1094,11 @@ function viewSettings(){
     svs.forEach(function(sx){ h+='<div class="row" style="padding:5px 0;gap:6px;align-items:center"><div class="grow"><b'+(sx.active===false?' style="opacity:.5"':"")+'>'+esc(sx.name)+'</b>'+(sx.active===false?' <span class="pill warn">panne</span>':"")+'<div class="tiny muted" style="word-break:break-all">'+esc(sx.url_template)+'</div></div><button class="copybtn" data-action="svc-up" data-id="'+sx.id+'">↑</button><button class="copybtn" data-action="svc-toggle" data-id="'+sx.id+'" data-act="'+(sx.active===false?"1":"0")+'">'+(sx.active===false?"on":"panne")+'</button><button class="copybtn" data-action="svc-del" data-id="'+sx.id+'">✕</button></div>'; });
     h+='<label class="lab">Ajouter un service</label><input id="svc-name" class="field" placeholder="Nom (ex. ytdown.to)"><input id="svc-tpl" class="field" placeholder="URL avec {url} ou {id}"><div class="tiny muted" style="margin:0 2px 6px">{url} = lien YouTube complet · {id} = identifiant. Ex. https://app.ytdown.to/en34/?url={url}</div><button class="btn sm block" data-action="svc-add">Ajouter</button></div>';
   }
+  if(isReleaseOwner()){
+    var ych0=(state.channels||[])[0];
+    h+='<h2 class="sec">🎥 Catalogue YouTube</h2>';
+    h+='<div class="card">'+(ych0?'<div class="tiny muted" style="margin-bottom:4px">Chaîne : <b>'+esc(ych0.label)+'</b></div>':'<div class="tiny muted" style="margin-bottom:4px">Aucune chaîne enregistrée.</div>')+'<label class="lab">Clé API YouTube (pour importer toutes les vidéos)</label><input id="yt-key" class="field" placeholder="Colle ta clé API ici" value="'+esc(lget("team:ytkey",""))+'"><div class="row" style="gap:6px"><button class="btn ghost sm" data-action="save-ytkey">Enregistrer la clé</button><button class="btn sm grow" data-action="sync-channel">🔄 Synchroniser les vidéos</button></div><div class="tiny muted" style="margin-top:6px">Importe automatiquement toutes les vidéos de la chaîne. Sans clé, ajoute les vidéos à la main depuis l\'onglet Vidéos.</div></div>';
+  }
   h+='<div style="margin-top:18px" class="center"><button class="btn line sm" data-action="logout">Se déconnecter</button></div><p class="tiny muted center" style="margin-top:14px">L\'Appel — Équipe · v6 (Quoi de neuf)</p>';
   return h;
 }
@@ -1262,6 +1297,9 @@ async function handle(a,el){
   if(a==="svc-toggle"){ setDlServiceActive(parseInt(el.getAttribute("data-id"),10), el.getAttribute("data-act")==="1"); return; }
   if(a==="svc-up"){ moveSvcUp(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="copy-arg"){ var ar=state.args.find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); if(ar){copyText(ar.body||"");el.textContent="Copié ✓";} return; }
+  if(a==="copy-msg"){ var mv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(mv){ copyText(groupMessage(mv)); el.textContent="Message copié ✓"; } return; }
+  if(a==="save-ytkey"){ lset("team:ytkey",val("yt-key")||""); showToast("Clé enregistrée ✓"); render(); return; }
+  if(a==="sync-channel"){ syncChannel((state.channels||[])[0]); return; }
 
   if(a==="add-recit"){ var sn=parseInt(val("r-surah"),10)||null; if(!sn)return; var a1=parseInt(val("r-ayah"),10)||null, a2=parseInt(val("r-ayah2"),10)||null; var by=val("r-by"); if(by==="__autre__"){ by=((window.prompt&&window.prompt("Prénom du récitateur (proche, invité…)"))||"").trim(); if(!by)return; } var exists=state.recits.some(function(r){return r.surah===sn&&(r.ayah||null)===a1&&(r.ayah_end||null)===a2;}); if(exists&&window.confirm&&!window.confirm("Ce passage est déjà marqué récité. Continuer quand même ?"))return; addRecit(sn,a1,a2,by); return; }
   if(a==="surah-toggle"){ var so=parseInt(el.getAttribute("data-s"),10); state.openSurah=state.openSurah===so?null:so; render(); return; }
