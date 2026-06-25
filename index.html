@@ -673,6 +673,7 @@ async function syncChannel(ch, silent){
   }catch(e){ if(!silent)showToast("Erreur de synchro : "+(e&&e.message||e)); }
 }
 async function maybeAutoSync(){ try{ if(!lget("team:ytkey",""))return; var last=parseInt(lget("team:lastsync","0"),10)||0; if(Date.now()-last < 1800000) return; var chs=(state.channels||[]); for(var i=0;i<chs.length;i++){ if(chs[i]&&chs[i].uploads_playlist_id) await syncChannel(chs[i], true); } }catch(e){} }
+async function forceSyncAll(){ if(!lget("team:ytkey","")){ showToast("Ajoute ta clé YouTube dans Réglages."); return; } showToast("🔄 Synchronisation…"); var chs=(state.channels||[]); for(var i=0;i<chs.length;i++){ if(chs[i]&&chs[i].uploads_playlist_id){ try{ await syncChannel(chs[i], true); }catch(e){} } } showToast("✅ Catalogue synchronisé."); }
 function recitsLeft(){return state.recits.filter(function(r){return !r.done;}).length;}
 function ideasNew(){return state.ideas.filter(function(i){return i.status==="nouvelle";}).length;}
 function shortLabel(s){return String(s).replace(/\s*\(.*?\)\s*/g,"").replace("Poster 1–2 vidéos","Vidéos").replace("Partager l'appel","Appel").replace("Point hebdo équipe","Point hebdo").replace("Réciter","Récit.");}
@@ -819,7 +820,7 @@ function viewVideos(){
   function vdate(v){ return v.published_at||v.created_at||""; }
   list.sort(function(a,b){ var da=vdate(a),db=vdate(b); return da<db?(-1*dir):(da>db?dir:0); });
   var shorts=list.filter(isShort), vids=list.filter(function(v){return !isShort(v);});
-  h+='<div class="row" style="margin:0 2px 6px;align-items:center"><div class="tiny muted grow">'+list.length+' vidéo(s)</div><button class="btn ghost sm" data-action="vid-sort">'+(state.vidSort==="old"?"↑ Plus anciennes":"↓ Plus récentes")+'</button></div>';
+  h+='<div class="row" style="margin:0 2px 6px;align-items:center;gap:6px"><div class="tiny muted grow">'+list.length+' vidéo(s)</div>'+(lget("team:ytkey","")?'<button class="btn ghost sm" data-action="sync-now" title="Synchroniser les nouvelles vidéos">🔄</button>':"")+'<button class="btn ghost sm" data-action="vid-sort">'+(state.vidSort==="old"?"↑ Plus anciennes":"↓ Plus récentes")+'</button></div>';
   if(vids.length){ h+='<h2 class="sec">🎬 Vidéos ('+vids.length+')</h2>'; vids.forEach(function(v){ h+=videoCard(v); }); }
   if(shorts.length){ h+='<h2 class="sec">⚡ Shorts ('+shorts.length+')</h2>'; shorts.forEach(function(v){ h+=videoCard(v); }); }
   return h;
@@ -1382,6 +1383,7 @@ async function handle(a,el){
   if(a==="copy-arg"){ var ar=state.args.find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); if(ar){copyText(ar.body||"");el.textContent="Copié ✓";} return; }
   if(a==="copy-msg"){ var mv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(mv){ copyText(groupMessage(mv)); el.textContent="Message copié ✓"; } return; }
   if(a==="vid-sort"){ state.vidSort=(state.vidSort==="old")?"recent":"old"; lset("team:vidsort",state.vidSort); render(); return; }
+  if(a==="sync-now"){ forceSyncAll(); return; }
   if(a==="vid-lang"){ state.vidLang=el.getAttribute("data-lang")||"fr"; lset("team:vidlang",state.vidLang); state.videoSearch=""; render(); return; }
   if(a==="toggle-addvideo"){ state.showAddVideo=!state.showAddVideo; render(); return; }
   if(a==="banner-pick"){ var bpid=parseInt(el.getAttribute("data-id"),10); state.bannerPickFor=(state.bannerPickFor===bpid)?null:bpid; render(); return; }
@@ -1456,7 +1458,7 @@ async function joinAs(name){ state.code=state.onbCode||state.code; state.me=name
 function toggleTheme(){ var d=document.documentElement.getAttribute("data-theme")==="dark"; setTheme(d?"light":"dark"); }
 function setTheme(t){ document.documentElement.setAttribute("data-theme",t); lset("team:theme",t); var m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute("content",t==="dark"?"#15120E":"#E0795F"); }
 
-async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); loadReleasesSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); await refreshPushState(); render(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
+async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); loadReleasesSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); await refreshPushState(); render(); maybeAutoSync(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
 function openIdeaDeepLink(ideaId){ if(!ideaId)return; var id=parseInt(ideaId,10); if(!id||!state.code||!state.me)return; state.view="ideas"; state.openComments[id]=true; markNotifSeen(); render(); setTimeout(function(){ var t=document.getElementById("idea-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
 function openReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; var id=parseInt(releaseId,10); state.view="releases"; markReleasesSeen(); render(); setTimeout(function(){ var t=document.getElementById("release-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
 function openReviewReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; if(!isReleaseOwner()){ openReleaseDeepLink(releaseId); return; } var id=parseInt(releaseId,10); state.view="releaseReview"; state.reviewReleaseId=id; render(); }

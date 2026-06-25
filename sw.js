@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v27 (multi-chaînes : 254 vidéos PT/ES/IT importées + filtre par langue 🇫🇷/🇵🇹/🇪🇸/🇮🇹 dans Vidéos + auto-sync toutes chaînes) */
-const CACHE = "lappel-v27";
+/* L'Appel — Équipe · service worker (PWA) — v28 (synchro YouTube plus fiable : auto-sync à chaque ouverture de l’app + bouton 🔄 manuel dans Vidéos) */
+const CACHE = "lappel-v28";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
