@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v23 (fix barre nav iOS : nav masquee au clavier (display:none) · argumentaires inline · badge+filtre bannière) */
-const CACHE = "lappel-v23";
+/* L'Appel — Équipe · service worker (PWA) — v24 (accès direct bannière : bouton 🖼 Bannière + titre cliquable sur chaque vidéo · retrait du filtre/badge avec-sans bannière · garde fix nav + args inline) */
+const CACHE = "lappel-v24";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
