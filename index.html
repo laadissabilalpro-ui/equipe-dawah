@@ -297,7 +297,7 @@ var state = {
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
-  releases:[], releaseIdeas:[], releasesSeen:0, reviewReleaseId:null,
+  releases:[], releaseIdeas:[], releasesSeen:0, reviewReleaseId:null, confirmPublish:null,
   ready:false, error:"", onbStep:"code", onbCode:"", onbNames:null
 };
 var sb=null, channel=null;
@@ -584,12 +584,9 @@ async function publishRelease(id){
   if(!isReleaseOwner())return;
   var rel = state.releases.find(function(r){return r.id===id;});
   if(!rel)return;
-  if(rel.status==="published"){ alert("Déjà publiée."); return; }
-  if(!rel.title || !rel.title.trim()){ alert("Le titre est requis avant publication."); return; }
-  if(window.confirm){
-    var nSubs = "ce groupe"; // on n'a pas le compte exact, message générique
-    if(!window.confirm("Publier maintenant ? Les frères de "+nSubs+" recevront une notif push.")) return;
-  }
+  if(rel.status==="published"){ showToast("Déjà publiée."); return; }
+  if(!rel.title || !rel.title.trim()){ showToast("Le titre est requis avant publication."); return; }
+  state.confirmPublish=null;
   var c=client();
   // 1. Marquer les idées liées comme livrées
   var linkedIds = state.releaseIdeas.filter(function(l){return l.release_id===id;}).map(function(l){return l.idea_id;});
@@ -600,6 +597,7 @@ async function publishRelease(id){
   await c.from("team_releases").update({ status:"published", published_at: new Date().toISOString() }).eq("id", id);
   state.view="releases"; state.reviewReleaseId=null;
   await refreshAll();
+  showToast("✅ Release publiée — l'équipe est notifiée.");
 }
 function onLiveReleasePublished(row, old){
   if(!row)return;
@@ -1301,7 +1299,9 @@ function viewReleaseReview(){
   }
   h += '</div>'+
     '<div class="card center">'+
-      '<button class="btn block" data-action="publish-release" data-id="'+rel.id+'">🚀 Publier maintenant — notifier '+(state.members.length||"les")+' frère'+(state.members.length>1?'s':'')+'</button>'+
+      (state.confirmPublish===rel.id
+        ? '<div class="tiny" style="margin-bottom:8px">Publier maintenant ? Toute l\'équipe recevra une notification push.</div><button class="btn block" data-action="publish-release" data-id="'+rel.id+'">✅ Oui, publier — notifier '+(state.members.length||"les")+' frère'+(state.members.length>1?'s':'')+'</button><button class="btn ghost sm" data-action="publish-cancel" style="margin-top:8px">Annuler</button>'
+        : '<button class="btn block" data-action="publish-ask" data-id="'+rel.id+'">🚀 Publier maintenant</button>')+
       '<button class="btn ghost sm" data-action="del-draft" data-id="'+rel.id+'" style="margin-top:10px">Supprimer ce draft</button>'+
     '</div>';
   return h;
@@ -1422,6 +1422,8 @@ async function handle(a,el){
   if(a==="release-goto"){ var g=el.getAttribute("data-goto"); if(g){ state.view=g; render(); } return; }
   if(a==="save-draft"){ var rid=parseInt(el.getAttribute("data-id"),10); updateDraft(rid,{ title:val("rev-title"), body:val("rev-body"), goto:val("rev-goto")||null, version:val("rev-version")||null, commit_sha:val("rev-sha")||null }); return; }
   if(a==="toggle-link-idea"){ var iid=parseInt(el.getAttribute("data-id"),10); var rid2=state.reviewReleaseId; if(!rid2)return; var cur=state.releaseIdeas.filter(function(l){return l.release_id===rid2;}).map(function(l){return l.idea_id;}); var idx=cur.indexOf(iid); if(idx>=0)cur.splice(idx,1); else cur.push(iid); setDraftIdeas(rid2,cur); return; }
+  if(a==="publish-ask"){ state.confirmPublish=parseInt(el.getAttribute("data-id"),10); render(); return; }
+  if(a==="publish-cancel"){ state.confirmPublish=null; render(); return; }
   if(a==="publish-release"){ publishRelease(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="del-draft"){ deleteDraft(parseInt(el.getAttribute("data-id"),10)); return; }
 
