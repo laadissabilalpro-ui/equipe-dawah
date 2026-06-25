@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v29 (Message groupe : choix lien YouTube/direct · nouveau bouton « Partager aux abonnés » (template Salam, variante Bilal/autres) · liens directs par plateforme · 3 modèles éditables) */
-const CACHE = "lappel-v29";
+/* L'Appel — Équipe · service worker (PWA) — v30 (Liens directs : un champ 🔗 par plateforme DU FRÈRE (mapping), YouTube exclu = source, saisie du lien crée la repost auto) */
+const CACHE = "lappel-v30";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
