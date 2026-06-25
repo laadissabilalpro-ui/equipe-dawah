@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v22 (fix barre nav iOS clavier+scroll · argumentaires inline · badge+filtre bannière) */
-const CACHE = "lappel-v22";
+/* L'Appel — Équipe · service worker (PWA) — v23 (fix barre nav iOS : nav masquee au clavier (display:none) · argumentaires inline · badge+filtre bannière) */
+const CACHE = "lappel-v23";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
@@ -98,4 +98,4 @@ self.addEventListener("notificationclick", (e) => {
         }
       } catch (_) {}
     }
-    if (self.clients.openWindow) return self.clients.openWindow(t
+    if (self.clients.op
