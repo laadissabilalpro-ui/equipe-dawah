@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v21 (bannières : import + téléchargement multi-format recadré) */
-const CACHE = "lappel-v21";
+/* L'Appel — Équipe · service worker (PWA) — v22 (fix barre nav iOS clavier+scroll · argumentaires inline · badge+filtre bannière) */
+const CACHE = "lappel-v22";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 

@@ -28,7 +28,7 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+  body{background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding-bottom:env(safe-area-inset-bottom);overscroll-behavior-y:none}
   #app{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
   button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
   input,select,textarea{font:inherit;color:inherit}
@@ -129,6 +129,11 @@
   .plat{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--bg2);color:var(--muted)}
   .plat.on{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good)}
   .argbox{background:var(--bg2);border-radius:12px;padding:10px;margin-top:8px}
+  .vidargs{margin-top:9px;border-top:1px dashed var(--line);padding-top:9px;display:flex;flex-direction:column;gap:7px}
+  .amini{background:var(--bg2);border-radius:11px;padding:9px 11px}
+  .amini .amini-t{font-weight:800;font-size:14px;line-height:1.25}
+  .amini .argbox{margin-top:6px;background:var(--card)}
+  .pill.bann-badge{background:var(--accent);color:#fff}
   .copybtn{font-size:12px;font-weight:800;padding:5px 10px;border-radius:9px;background:var(--card);box-shadow:var(--shadow)}
   .recit{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
   .check{width:30px;height:30px;border-radius:9px;border:2px solid var(--line);display:grid;place-items:center;flex:0 0 auto;font-weight:900}
@@ -138,7 +143,8 @@
   .back{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--accent);margin-bottom:6px}
   .empty{text-align:center;color:var(--muted);padding:26px 10px}
 
-  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);display:flex;max-width:560px;margin:0 auto;padding:8px 6px calc(8px + env(safe-area-inset-bottom));-webkit-transform:translateZ(0);transform:translateZ(0)}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);display:flex;max-width:560px;margin:0 auto;padding:8px 6px calc(8px + env(safe-area-inset-bottom));transition:transform .2s ease}
+  body.kb-open nav{transform:translateY(185%);pointer-events:none}
   .nav-i{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px;font-weight:700;padding:4px 2px;border-radius:12px}
   .nav-i.on{color:var(--accent)}
   .nav-i svg{width:23px;height:23px}
@@ -288,7 +294,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, _sgLoad:null,
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerOnly:lget("team:banneronly","")==="1", dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, _sgLoad:null,
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -808,13 +814,13 @@ function viewVideos(){
   h+='<input id="v-search" class="field" placeholder="🔎 Rechercher une vidéo (titre ou sujet)" value="'+esc(state.videoSearch)+'">';
   h+='<div class="toolbar">'+tab2("all","Toutes")+tab2("appel","📣 À reposter")+tab2("mensongere","⚠️ À répondre")+'</div>';
   var vq=state.videoSearch.toLowerCase().trim();
-  var list=state.videos.filter(function(v){ if(state.videoFilter!=="all"&&v.kind!==state.videoFilter)return false; if(vq){var hay=((v.title||"")+" "+(v.topic||"")).toLowerCase(); if(hay.indexOf(vq)<0)return false;} return true; });
+  var list=state.videos.filter(function(v){ if(state.videoFilter!=="all"&&v.kind!==state.videoFilter)return false; if(state.bannerOnly&&!v.banner_url)return false; if(vq){var hay=((v.title||"")+" "+(v.topic||"")).toLowerCase(); if(hay.indexOf(vq)<0)return false;} return true; });
   if(!list.length){ h+='<div class="empty">'+(vq?"Aucune vidéo ne correspond.":"Aucune vidéo ici pour l\'instant.")+'</div>'; return h; }
   var dir=(state.vidSort==="old")?1:-1;
   function vdate(v){ return v.published_at||v.created_at||""; }
   list.sort(function(a,b){ var da=vdate(a),db=vdate(b); return da<db?(-1*dir):(da>db?dir:0); });
   var shorts=list.filter(isShort), vids=list.filter(function(v){return !isShort(v);});
-  h+='<div class="row" style="margin:0 2px 6px;align-items:center"><div class="tiny muted grow">'+list.length+' vidéo(s)</div><button class="btn ghost sm" data-action="vid-sort">'+(state.vidSort==="old"?"↑ Plus anciennes":"↓ Plus récentes")+'</button></div>';
+  h+='<div class="row" style="margin:0 2px 6px;align-items:center;gap:6px"><div class="tiny muted grow">'+list.length+' vidéo(s)</div><button class="btn '+(state.bannerOnly?"":"ghost ")+'sm" data-action="vid-banneronly">🖼 Avec bannière</button><button class="btn ghost sm" data-action="vid-sort">'+(state.vidSort==="old"?"↑ Plus anciennes":"↓ Plus récentes")+'</button></div>';
   if(vids.length){ h+='<h2 class="sec">🎬 Vidéos ('+vids.length+')</h2>'; vids.forEach(function(v){ h+=videoCard(v); }); }
   if(shorts.length){ h+='<h2 class="sec">⚡ Shorts ('+shorts.length+')</h2>'; shorts.forEach(function(v){ h+=videoCard(v); }); }
   return h;
@@ -822,12 +828,12 @@ function viewVideos(){
 function isShort(v){ if(v.is_short===true)return true; if(v.is_short===false)return false; return /\/shorts\//.test(v.url||""); }
 function videoCard(v){
   var svc=curDlService(), owner=ownerPlats(state.me);
-  var rp=repostsFor(v.id), na=argsFor(v.id).length, yid=v.yt_id||ytId(v.url), thumb=v.thumbnail_url||ytThumb(yid), sht=isShort(v);
+  var rp=repostsFor(v.id), aa=argsFor(v.id), na=aa.length, yid=v.yt_id||ytId(v.url), thumb=v.thumbnail_url||ytThumb(yid), sht=isShort(v);
   var plats=PLATFORMS.map(function(p){var mineOn=rp.some(function(r){return r.platform===p&&r.member===state.me;});var cnt=rp.filter(function(r){return r.platform===p;}).length;var own=owner.indexOf(p)>=0;return '<button class="plat'+(mineOn?" on":"")+'" data-action="repost" data-video="'+v.id+'" data-plat="'+esc(p)+'"'+((own&&!mineOn)?' style="box-shadow:0 0 0 2px var(--accent) inset"':"")+'>'+(own?"★ ":"")+esc(p)+(cnt?" ·"+cnt:"")+'</button>';}).join("");
   return '<div class="card vid">'+
     (thumb?'<div style="border-radius:10px;overflow:hidden;margin-bottom:8px;background:rgba(0,0,0,.06)"><img src="'+esc(thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover"></div>':"")+
     '<div class="ttl">'+esc(v.title)+'</div>'+
-    '<div class="tagrow" style="margin-top:5px">'+(sht?'<span class="pill" style="background:var(--accent);color:#fff">⚡ Short</span>':"")+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(v.kind==="appel"?"📣 Appel":v.kind==="mensongere"?"⚠️ Réponse":"Autre")+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div>'+
+    '<div class="tagrow" style="margin-top:5px">'+(sht?'<span class="pill" style="background:var(--accent);color:#fff">⚡ Short</span>':"")+(v.banner_url?'<span class="pill bann-badge">🖼</span>':"")+(v.topic?'<span class="pill">'+esc(v.topic)+'</span>':"")+'<span class="pill '+(v.kind==="mensongere"?"warn":"info")+'">'+(v.kind==="appel"?"📣 Appel":v.kind==="mensongere"?"⚠️ Réponse":"Autre")+'</span>'+(v.platform?'<span class="pill">'+esc(v.platform)+'</span>':"")+'</div>'+
     '<div class="row" style="gap:7px;margin-top:8px;flex-wrap:wrap">'+
       (v.url?'<a class="btn ghost sm" href="'+esc(v.url)+'" target="_blank" rel="noopener">▶ YouTube</a>':"")+
       ((svc&&(v.url||yid))?'<button class="btn sm" data-action="dl-copy" data-video="'+v.id+'">📋 Copier le lien</button>':"")+
@@ -835,6 +841,7 @@ function videoCard(v){
     '</div>'+
     ((state.dlPickFor===v.id)?dlPicker(v):"")+
     (v.kind==="appel"?'<div><div class="tiny muted" style="margin-top:8px">Reposté sur :</div><div class="platrow">'+plats+'</div></div>':"")+
+    (na?'<div class="vidargs">'+aa.slice(0,3).map(function(a){return argMini(a,v.id);}).join("")+(na>3?'<button class="btn ghost sm block" data-action="open-video" data-id="'+v.id+'" style="margin-top:2px">+ '+(na-3)+' autre(s) — tout voir</button>':"")+'</div>':"")+
     '<div class="row" style="gap:7px;margin-top:6px;align-items:center"><button class="btn line sm" data-action="open-video" data-id="'+v.id+'">Détails / argumentaires'+(na?" ("+na+")":"")+'</button>'+(v.channel_key?"":'<button class="copybtn" data-action="del-video" data-id="'+v.id+'" title="Supprimer cette vidéo">🗑</button>')+'</div>'+
   '</div>';
 }
@@ -892,6 +899,9 @@ function argCard(a, vid, n){
       '<div class="grow"></div><span class="tiny muted">'+esc(a.added_by||"")+'</span>'+
       (vid?'<button class="copybtn" data-action="arg-unlink" data-arg="'+a.id+'" data-video="'+vid+'">détacher</button>':"")+
       '<button class="copybtn" data-action="del-arg" data-id="'+a.id+'">✕</button></div></div>';
+}
+function argMini(a, vid){
+  return '<div class="amini"><div class="amini-t">'+esc(a.title)+'</div>'+(a.topic?'<span class="pill" style="margin-top:4px">'+esc(a.topic)+'</span>':"")+(a.body?'<div class="argbox">'+esc(a.body)+'</div>':"")+'<div class="row" style="margin-top:7px;gap:7px">'+(a.body?'<button class="copybtn" data-action="copy-arg" data-id="'+a.id+'">📋 Copier</button>':"")+(a.ref?'<a class="copybtn" href="'+esc(a.ref)+'" target="_blank" rel="noopener">Source ↗</a>':"")+'</div></div>';
 }
 function viewArguments(){
   if(!state.ready)return loading();
@@ -1364,6 +1374,7 @@ async function handle(a,el){
   if(a==="copy-arg"){ var ar=state.args.find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); if(ar){copyText(ar.body||"");el.textContent="Copié ✓";} return; }
   if(a==="copy-msg"){ var mv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(mv){ copyText(groupMessage(mv)); el.textContent="Message copié ✓"; } return; }
   if(a==="vid-sort"){ state.vidSort=(state.vidSort==="old")?"recent":"old"; lset("team:vidsort",state.vidSort); render(); return; }
+  if(a==="vid-banneronly"){ state.bannerOnly=!state.bannerOnly; lset("team:banneronly", state.bannerOnly?"1":""); render(); return; }
   if(a==="set-short"){ setShort(parseInt(el.getAttribute("data-id"),10), el.getAttribute("data-v")==="1"); return; }
   if(a==="banner-dl"){ var bv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); var r=parseFloat(el.getAttribute("data-r"))||0; var sfx=el.getAttribute("data-s")||"img"; if(bv&&bv.banner_url){ bannerDL(bv.banner_url, r, "banniere_"+bv.id+"_"+sfx+".jpg"); } return; }
   if(a==="dl-copy"){ var dcv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(!dcv)return; var yurl=dcv.url||(dcv.yt_id?("https://www.youtube.com/watch?v="+dcv.yt_id):""); if(el.getAttribute("data-armed")==="1"){ var svc2=curDlService(); if(svc2&&window.open)window.open(dlURL(svc2,dcv),"_blank"); el.setAttribute("data-armed","0"); el.textContent="📋 Copier le lien"; } else { copyText(yurl); showToast("Lien copié ✓ — ouvre le site puis colle-le (coller / Ctrl+V)"); el.setAttribute("data-armed","1"); el.textContent="⬇ Ouvrir le site & coller"; } return; }
@@ -1435,6 +1446,14 @@ async function start(){ if(!state.code||!state.me)return; try{ client(); loadNot
 function openIdeaDeepLink(ideaId){ if(!ideaId)return; var id=parseInt(ideaId,10); if(!id||!state.code||!state.me)return; state.view="ideas"; state.openComments[id]=true; markNotifSeen(); render(); setTimeout(function(){ var t=document.getElementById("idea-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
 function openReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; var id=parseInt(releaseId,10); state.view="releases"; markReleasesSeen(); render(); setTimeout(function(){ var t=document.getElementById("release-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
 function openReviewReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; if(!isReleaseOwner()){ openReleaseDeepLink(releaseId); return; } var id=parseInt(releaseId,10); state.view="releaseReview"; state.reviewReleaseId=id; render(); }
+/* iOS PWA : masque la barre du bas quand le clavier virtuel est ouvert (sinon la nav fixed se detache au scroll) */
+(function(){
+  function isField(t){ return t && (t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable); }
+  function kb(on){ var b=document.body; if(b) b.classList.toggle("kb-open", !!on); }
+  document.addEventListener("focusin", function(e){ if(isField(e.target)) kb(true); });
+  document.addEventListener("focusout", function(){ setTimeout(function(){ if(!isField(document.activeElement)) kb(false); }, 60); });
+  if(window.visualViewport){ window.visualViewport.addEventListener("resize", function(){ kb((window.innerHeight - window.visualViewport.height) > 120); }); }
+})();
 function init(){
   setTheme(lget("team:theme",(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"));
   if(state.code&&state.me){ state.onbStep="name"; render(); start(); }
