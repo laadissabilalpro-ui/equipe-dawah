@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v24 (accès direct bannière : bouton 🖼 Bannière + titre cliquable sur chaque vidéo · retrait du filtre/badge avec-sans bannière · garde fix nav + args inline) */
-const CACHE = "lappel-v24";
+/* L'Appel — Équipe · service worker (PWA) — v25 (Vidéos/Args : ajout vidéo & ajout arg repliables · bouton 🖼 Bannière inline (sélecteur format direct) · args repliés (clic) · vidéos liées sur page Args) */
+const CACHE = "lappel-v25";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
