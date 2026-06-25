@@ -1,0 +1,28 @@
+name: Sync YouTube → Supabase
+
+# Synchronise automatiquement les nouvelles vidéos des chaînes (FR/PT/ES/IT)
+# dans Supabase, même si personne n'ouvre l'app.
+on:
+  schedule:
+    - cron: "0 */2 * * *"   # toutes les 2 heures (UTC)
+  workflow_dispatch: {}       # + bouton "Run workflow" manuel dans l'onglet Actions
+
+# Évite deux synchros en parallèle
+concurrency:
+  group: sync-youtube
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Sync
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: node scripts/sync-youtube.mjs
