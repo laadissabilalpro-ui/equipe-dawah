@@ -282,6 +282,62 @@ function surahStat(sn){
 var DOW=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"], MON=["jan","fév","mar","avr","mai","juin","juil","aoû","sep","oct","nov","déc"];
 function dateAdd(n){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d;}
 function week7(){var a=[];for(var i=0;i<7;i++)a.push(ymd(dateAdd(i)));return a;}
+/* ===== VISIOS (appels visio · fuseaux horaires · agenda · présence) ===== */
+function zonedToUtc(y,mo,d,h,mi,tz){ var guess=Date.UTC(y,mo-1,d,h,mi,0); function offAt(ms){ var dtf=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}); var p={}; dtf.formatToParts(new Date(ms)).forEach(function(x){p[x.type]=x.value;}); return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)-ms; } var o1=offAt(guess),u=guess-o1,o2=offAt(u); if(o2!==o1)u=guess-o2; return u; }
+function detectTz(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"; }catch(e){ return "UTC"; } }
+function fmtTime(ms,tz){ try{ return new Intl.DateTimeFormat('fr-FR',{timeZone:tz,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(ms)); }catch(e){ return "??:??"; } }
+function fmtDateTime(ms,tz){ try{ return new Intl.DateTimeFormat('fr-FR',{timeZone:tz,weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(ms)); }catch(e){ return new Date(ms).toISOString(); } }
+function ymdInTz(ms,tz){ try{ var p={}; new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(ms)).forEach(function(x){p[x.type]=x.value;}); return p.year+"-"+p.month+"-"+p.day; }catch(e){ return ymd(new Date(ms)); } }
+function tzOffLabel(ms,tz){ try{ var p=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'longOffset'}).formatToParts(new Date(ms)).find(function(x){return x.type==='timeZoneName';}); return p?p.value.replace('GMT','UTC'):''; }catch(e){ return ''; } }
+function tzCity(tz){ return String(tz||"").split("/").pop().replace(/_/g," "); }
+var TZ_COMMON=["Indian/Reunion","Europe/Paris","Europe/London","Africa/Casablanca","Africa/Dakar","America/New_York","America/Los_Angeles","America/Montreal","Asia/Dubai","Asia/Riyadh","Asia/Istanbul","Australia/Sydney","UTC"];
+function memberTz(name){ var m=(state.members||[]).find(function(x){return x.name===name;}); return (m&&m.tz)?m.tz:null; }
+function myTz(){ return memberTz(state.me)||detectTz(); }
+function meetingById(id){ return (state.meetings||[]).find(function(m){return m.id===id;})||null; }
+function meetingsLive(){ return (state.meetings||[]).filter(function(m){return m.status!=="cancelled";}); }
+function meetingsUpcoming(){ var now=Date.now(); return meetingsLive().filter(function(m){ return Date.parse(m.starts_at) >= now-2*3600*1000; }).sort(function(a,b){ return Date.parse(a.starts_at)-Date.parse(b.starts_at); }); }
+function nextMeeting(){ return meetingsUpcoming()[0]||null; }
+function rsvpFor(mid){ return (state.rsvps||[]).filter(function(r){return r.meeting_id===mid;}); }
+function myRsvp(mid){ return rsvpFor(mid).find(function(r){return r.member===state.me;})||null; }
+function rsvpCount(mid,st){ return rsvpFor(mid).filter(function(r){return r.status===st;}).length; }
+function openMeetingDeepLink(id){ if(!id||!state.code||!state.me)return; state.view="meeting"; state.meetingId=parseInt(id,10); render(); }
+async function ensureMyTz(){ try{ var m=(state.members||[]).find(function(x){return x.name===state.me;}); if(m && !m.tz){ var tz=detectTz(); await client().from("team_members").update({tz:tz}).eq("code",state.code).eq("name",state.me); m.tz=tz; } }catch(e){} }
+async function addMeeting(title,dateStr,timeStr,link,note,dur){ title=(title||"").trim(); if(!title){ showToast("Donne un titre à la visio."); return; } if(!dateStr||!timeStr){ showToast("Choisis une date et une heure."); return; } var tz=myTz(); var dp=dateStr.split("-"), tp=timeStr.split(":"); var ms=zonedToUtc(+dp[0],+dp[1],+dp[2],+tp[0],+tp[1],tz); var ins=await client().from("team_meetings").insert({code:state.code,title:title,starts_at:new Date(ms).toISOString(),duration_min:parseInt(dur,10)||60,video_url:(link||"").trim()||null,note:(note||"").trim()||null,organizer_tz:tz,created_by:state.me,status:"proposed"}).select().single(); if(ins&&ins.data){ try{ await client().from("team_meeting_rsvp").insert({code:state.code,meeting_id:ins.data.id,member:state.me,status:"present"}); }catch(e){} state.view="meeting"; state.meetingId=ins.data.id; } state.showProposeVisio=false; await refreshAll(); render(); showToast("Visio proposée ✓ — copie l'annonce pour prévenir"); }
+async function setRsvp(mid,st){ var ex=myRsvp(mid); var noteEl=document.getElementById("rsvp-note-"+mid); var note=noteEl?noteEl.value:((ex&&ex.note)||""); if(ex){ await client().from("team_meeting_rsvp").update({status:st,note:(note||"").trim()||null,updated_at:new Date().toISOString()}).eq("id",ex.id); } else { await client().from("team_meeting_rsvp").insert({code:state.code,meeting_id:mid,member:state.me,status:st,note:(note||"").trim()||null}); } await refreshAll(); }
+async function saveRsvpNote(mid){ var ex=myRsvp(mid); var noteEl=document.getElementById("rsvp-note-"+mid); var note=noteEl?noteEl.value:""; if(ex){ await client().from("team_meeting_rsvp").update({note:(note||"").trim()||null,updated_at:new Date().toISOString()}).eq("id",ex.id); } else { await client().from("team_meeting_rsvp").insert({code:state.code,meeting_id:mid,member:state.me,status:"present",note:(note||"").trim()||null}); } await refreshAll(); showToast("Noté ✓"); }
+async function cancelMeeting(mid){ await client().from("team_meetings").update({status:"cancelled"}).eq("id",mid); state.confirmCancelMeeting=null; state.view="tasks"; state.taskTab="agenda"; state.meetingId=null; await refreshAll(); showToast("Visio annulée."); }
+function meetingAnnounce(m){ var ms=Date.parse(m.starts_at); var L=[]; L.push("📹 Visio : "+m.title); L.push("🗓️ "+fmtDateTime(ms,m.organizer_tz||myTz())+" (heure de "+tzCity(m.organizer_tz||myTz())+")"); L.push(""); L.push("🌍 Heure locale de chacun :"); membersSorted().forEach(function(mem){ var tz=memberTz(mem.name); if(tz){ L.push("• "+mem.name+" ("+tzCity(tz)+") : "+fmtTime(ms,tz)); } else { L.push("• "+mem.name+" : heure inconnue (qu'il ouvre l'app une fois)"); } }); L.push(""); if(m.video_url){ L.push("🎥 Lien : "+m.video_url); L.push(""); } L.push("🙏 Merci de signaler ta présence dans l'app (Tâches → Agenda → la visio)."); return L.join("\n"); }
+function whoBlock(mid){ var groups=[["present","✅ Présents"],["maybe","🤔 Peut-être"],["absent","❌ Absents"]]; var h=""; groups.forEach(function(pair){ var list=rsvpFor(mid).filter(function(r){return r.status===pair[0];}); if(!list.length)return; h+='<div class="tiny" style="margin-top:6px"><b>'+pair[1]+' ('+list.length+')</b></div>'; list.forEach(function(r){ h+='<div class="tiny muted" style="margin-left:6px">'+esc(r.member)+(r.note?' — <i>'+esc(r.note)+'</i>':'')+'</div>'; }); }); var answered=rsvpFor(mid).map(function(r){return r.member;}); var noResp=membersSorted().filter(function(mem){return answered.indexOf(mem.name)<0;}); if(noResp.length){ h+='<div class="tiny muted" style="margin-top:6px">⏳ Sans réponse : '+noResp.map(function(x){return esc(x.name);}).join(", ")+'</div>'; } return h; }
+function proposeVisioForm(){ var tz=myTz(); var d=ymd(dateAdd(1)); return '<div class="card"><div class="ttl" style="margin-bottom:4px">📹 Proposer une visio</div>'+
+  '<input id="m-title" class="field" placeholder="Sujet (ex. Point hebdo da\'wah)">'+
+  '<div class="row"><input id="m-date" class="field" style="margin:0" type="date" value="'+d+'"><input id="m-time" class="field" style="margin:0;width:42%" type="time" value="21:00"></div>'+
+  '<div class="tiny muted" style="margin:4px 2px">🕐 Heure saisie dans TON fuseau : <b>'+esc(tzCity(tz))+'</b> — chaque frère la verra chez lui. <span data-action="go" data-view="settings" style="text-decoration:underline;cursor:pointer">changer</span></div>'+
+  '<input id="m-link" class="field" placeholder="Lien du visio (Meet / Zoom / Jitsi…) — optionnel">'+
+  '<input id="m-note" class="field" placeholder="Note (optionnel)">'+
+  '<button class="btn block" data-action="add-meeting">Proposer la visio</button></div>'; }
+function meetingMiniRow(m){ var ms=Date.parse(m.starts_at); var mine=myRsvp(m.id); var badge=mine?(mine.status==="present"?'<span class="dpill on">✅ tu viens</span>':mine.status==="maybe"?'<span class="dpill">🤔 peut-être</span>':'<span class="dpill">❌ absent</span>'):'<span class="dpill" style="background:var(--accent);color:#fff">à répondre</span>'; return '<div class="card" data-action="open-meeting" data-id="'+m.id+'" style="cursor:pointer"><div class="row"><span class="atime" style="min-width:48px">'+fmtTime(ms,myTz())+'</span><div class="grow"><div class="ttl small">📹 '+esc(m.title)+'</div><div class="tiny muted">'+fmtDateTime(ms,myTz())+' (ton heure) · '+rsvpCount(m.id,"present")+' présent(s)</div></div>'+badge+'</div></div>'; }
+function viewMeeting(){ if(!state.ready)return loading(); var m=meetingById(state.meetingId); if(!m){ return '<button class="btn ghost sm" data-action="open-agenda">← Agenda</button><div class="empty">Visio introuvable.</div>'; } var ms=Date.parse(m.starts_at); var tz=myTz(); var orgTz=m.organizer_tz||tz; var mine=myRsvp(m.id); var cancelled=(m.status==="cancelled");
+  var h='<button class="btn ghost sm" data-action="open-agenda" style="margin-bottom:8px">← Agenda</button>';
+  h+='<div class="card">'+(cancelled?'<div class="pill" style="background:#E5484D22;border:1px solid #E5484D66;margin-bottom:6px">❌ Annulée</div>':'')+'<div class="ttl" style="font-size:18px">📹 '+esc(m.title)+'</div><div class="tiny muted">proposée par '+esc(m.created_by||"?")+'</div>';
+  h+='<div style="margin-top:10px;font-size:17px;font-weight:800">'+fmtDateTime(ms,tz)+'</div><div class="tiny muted">ton heure ('+esc(tzCity(tz))+') · '+esc(tzOffLabel(ms,tz))+'</div>';
+  if(orgTz!==tz){ h+='<div class="tiny" style="margin-top:3px">= <b>'+fmtTime(ms,orgTz)+'</b> heure de '+esc(tzCity(orgTz))+' (réf.)</div>'; }
+  if(m.note){ h+='<div class="pn" style="margin-top:8px">'+esc(m.note)+'</div>'; }
+  var safeUrl=/^https?:\/\//i.test(m.video_url||"")?m.video_url:"";
+  if(safeUrl){ h+='<div style="margin-top:10px"><a class="btn block" href="'+esc(safeUrl)+'" target="_blank" rel="noopener">🎥 Rejoindre la visio</a><button class="btn ghost sm block" data-action="copy-link" data-id="'+m.id+'" style="margin-top:5px">📋 Copier le lien</button></div>'; }
+  else if(m.video_url){ h+='<div class="pn" style="margin-top:8px">🎥 '+esc(m.video_url)+'</div>'; }
+  h+='</div>';
+  h+='<h2 class="sec">🌍 Chez chacun</h2><div class="card">'+membersSorted().map(function(mem){ var mtz=memberTz(mem.name); return '<div class="row" style="padding:4px 0"><div class="avatar" style="background:'+avColor(mem.name)+';width:26px;height:26px;font-size:11px">'+esc(initials(mem.name))+'</div><div class="grow"><b>'+esc(mem.name)+'</b>'+(mem.name===state.me?' <span class="tiny accent">(toi)</span>':'')+' <span class="tiny muted">'+(mtz?esc(tzCity(mtz)):'fuseau inconnu')+'</span></div><span class="atime" style="font-weight:700">'+(mtz?fmtTime(ms,mtz):'—')+'</span></div>'; }).join("")+'</div>';
+  if(!cancelled){ h+='<h2 class="sec">Ta présence</h2><div class="card"><div class="row" style="gap:6px">'+
+    '<button class="btn'+(mine&&mine.status==="present"?"":" ghost")+' sm grow" data-action="rsvp" data-id="'+m.id+'" data-st="present">✅ Présent</button>'+
+    '<button class="btn'+(mine&&mine.status==="maybe"?"":" ghost")+' sm grow" data-action="rsvp" data-id="'+m.id+'" data-st="maybe">🤔 Peut-être</button>'+
+    '<button class="btn'+(mine&&mine.status==="absent"?"":" ghost")+' sm grow" data-action="rsvp" data-id="'+m.id+'" data-st="absent">❌ Absent</button></div>'+
+    '<input id="rsvp-note-'+m.id+'" class="field" style="margin-top:8px" placeholder="Ton horaire / contrainte (ex. dispo après 21h chez moi)" value="'+esc((mine&&mine.note)||"")+'"><button class="btn ghost sm" data-action="save-rsvp-note" data-id="'+m.id+'">💾 Enregistrer ma note</button></div>'; }
+  h+='<h2 class="sec">Qui vient</h2><div class="card">'+(rsvpFor(m.id).length?whoBlock(m.id):'<div class="tiny muted">Personne n\'a encore répondu.</div>')+'</div>';
+  h+='<div style="margin-top:10px"><button class="btn ghost sm block" data-action="copy-announce" data-id="'+m.id+'">📋 Copier l\'annonce (avec l\'heure de chacun)</button></div>';
+  if(!cancelled && (m.created_by===state.me || state.me==="Bilal")){ if(state.confirmCancelMeeting===m.id){ h+='<div class="card" style="margin-top:8px;border:1px solid #E5484D66"><div class="tiny">Annuler cette visio pour tout le monde ?</div><div class="row" style="gap:7px;margin-top:6px"><button class="btn sm" style="background:#E5484D" data-action="cancel-meeting-yes" data-id="'+m.id+'">Oui, annuler</button><button class="btn ghost sm" data-action="cancel-meeting-no">Non</button></div></div>'; } else { h+='<button class="btn ghost sm block" data-action="cancel-meeting-ask" data-id="'+m.id+'" style="margin-top:6px;color:#E5484D">Annuler la visio</button>'; } }
+  return h; }
+function onLiveMeeting(row){ if(!row||row.created_by===state.me)return; showToast("📹 "+(row.created_by||"Quelqu'un")+" propose une visio : "+truncate(row.title,40)); }
+
 function dParts(s){var p=String(s).split("-");return new Date(+p[0],(+p[1])-1,+p[2]);}
 function dowShort(s){return DOW[dParts(s).getDay()];}
 function dayNum(s){return dParts(s).getDate();}
@@ -293,8 +349,8 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, msgPickFor:null, argShowFor:null, showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), vidLang:lget("team:vidlang","fr"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, _sgLoad:null,
-  members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[],
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, msgPickFor:null, argShowFor:null, meetingId:null, showProposeVisio:false, confirmCancelMeeting:null, showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), vidLang:lget("team:vidlang","fr"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, _sgLoad:null,
+  members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[], meetings:[], rsvps:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
   releases:[], releaseIdeas:[], releasesSeen:0, reviewReleaseId:null, confirmPublish:null,
@@ -349,13 +405,15 @@ async function refreshAll(){
     c.from("team_release_ideas").select("*").eq("code",code),
     c.from("team_dl_services").select("*").eq("code",code).order("sort",{ascending:true}),
     c.from("team_argument_videos").select("*").eq("code",code),
-    c.from("team_channels").select("*").eq("code",code).order("sort",{ascending:true})
+    c.from("team_channels").select("*").eq("code",code).order("sort",{ascending:true}),
+    c.from("team_meetings").select("*").eq("code",code).order("starts_at",{ascending:true}),
+    c.from("team_meeting_rsvp").select("*").eq("code",code)
   ]);
   state.members=res[0].data||[]; state.duties=res[1].data||[]; state.logs=res[2].data||[]; state.tasks=res[3].data||[];
   state.videos=res[4].data||[]; state.reposts=res[5].data||[]; state.args=res[6].data||[]; state.recits=res[7].data||[]; state.ideas=res[8].data||[];
   state.votes=res[9].data||[]; state.comments=res[10].data||[];
   state.releases=res[11].data||[]; state.releaseIdeas=res[12].data||[];
-  state.dlServices=res[13].data||[]; state.argVideos=res[14].data||[]; state.channels=res[15].data||[];
+  state.dlServices=res[13].data||[]; state.argVideos=res[14].data||[]; state.channels=res[15].data||[]; state.meetings=res[16].data||[]; state.rsvps=res[17].data||[];
   state.ready=true; render();
 }
 var debRefresh = debounce(function(){ refreshAll().catch(function(e){console.warn(e);}); }, 260);
@@ -364,13 +422,14 @@ function subscribe(){
   var c=client();
   if(channel){ try{c.removeChannel(channel);}catch(e){} }
   var f="code=eq."+state.code;
-  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas","team_idea_votes","team_idea_comments","team_releases","team_release_ideas","team_dl_services","team_argument_videos","team_channels"];
+  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas","team_idea_votes","team_idea_comments","team_releases","team_release_ideas","team_dl_services","team_argument_videos","team_channels","team_meetings","team_meeting_rsvp"];
   channel=c.channel("team-"+state.code);
   tables.forEach(function(t){ channel.on("postgres_changes",{event:"*",schema:"public",table:t,filter:f},debRefresh); });
   // Toasts en direct sur nouvelles idées et nouveaux commentaires (pas par soi-même)
   channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_ideas",filter:f},function(p){ onLiveIdea(p&&p.new); });
   channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_idea_comments",filter:f},function(p){ onLiveComment(p&&p.new); });
   channel.on("postgres_changes",{event:"UPDATE",schema:"public",table:"team_releases",filter:f},function(p){ onLiveReleasePublished(p&&p.new, p&&p.old); });
+  channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_meetings",filter:f},function(p){ onLiveMeeting(p&&p.new); });
   channel.subscribe();
 }
 
@@ -732,6 +791,7 @@ function render(){
   else if(v==="releases")body=viewReleases();
   else if(v==="releaseReview")body=viewReleaseReview();
   else if(v==="duties")body=viewDuties();
+  else if(v==="meeting")body=viewMeeting();
   else if(v==="settings")body=viewSettings();
   app.innerHTML=header()+'<main class="fade">'+body+'</main>'+nav()+(state.sheet?sheet():"");
 }
@@ -775,6 +835,7 @@ function viewPoint(){
     link("ideas",IC.idea,"Idées"+(ide?" ("+ide+")":""))+'</div>';
   h+=pushPromptCard();
   h+=draftPromptCard();
+  var nm=nextMeeting(); if(nm){ var nms=Date.parse(nm.starts_at); h+='<div class="card" data-action="open-meeting" data-id="'+nm.id+'" style="cursor:pointer;border-left:4px solid var(--accent)"><div class="row"><span style="font-size:22px">📹</span><div class="grow"><div class="ttl small">Prochaine visio · '+esc(truncate(nm.title,30))+'</div><div class="tiny muted">'+fmtDateTime(nms,myTz())+' (ton heure) · '+rsvpCount(nm.id,"present")+' présent(s)</div></div>'+(myRsvp(nm.id)?'':'<span class="dpill" style="background:var(--accent);color:#fff">réponds</span>')+'</div></div>'; }
 
   // à faire aujourd'hui (tâches datées)
   var tdyT=state.tasks.filter(function(t){return t.due_date===tdy&&!t.done;}).sort(function(a,b){var x=a.due_time||"99:99",y=b.due_time||"99:99";return x<y?-1:x>y?1:0;});
@@ -1020,6 +1081,10 @@ function viewAgenda(){
   var over=dated.filter(function(t){return !t.done&&t.due_date<tdy;}).sort(function(a,b){return a.due_date<b.due_date?-1:1;});
   var dayTasks=dated.filter(function(t){return t.due_date===day&&(!state.hideDone||!t.done);}).sort(function(a,b){var x=a.due_time||"99:99",y=b.due_time||"99:99";return x<y?-1:x>y?1:0;});
   var h='<div class="seg" style="margin-bottom:8px"><button data-action="agenda-scope" data-s="team" class="'+(scope==="team"?"on":"")+'">Équipe</button><button data-action="agenda-scope" data-s="me" class="'+(scope==="me"?"on":"")+'">Moi</button></div>';
+  h+='<button class="btn ghost sm block" data-action="toggle-propose-visio" style="margin-bottom:6px">📹 '+(state.showProposeVisio?"Fermer":"Proposer une visio")+'</button>';
+  if(state.showProposeVisio) h+=proposeVisioForm();
+  var upMeet=meetingsUpcoming();
+  if(upMeet.length){ h+='<h2 class="sec">📹 Visios à venir</h2>'; upMeet.forEach(function(mm){ h+=meetingMiniRow(mm); }); }
   if(over.length){ h+='<h2 class="sec">⏰ En retard ('+over.length+')</h2>'; over.forEach(function(t){h+=agendaRow(t,true);}); }
   h+='<div class="weekstrip">'+week7().map(function(d){var sel=d===day,isT=d===tdy,n=dated.filter(function(t){return t.due_date===d&&!t.done;}).length;return '<button class="wday'+(sel?" sel":"")+(isT?" today":"")+'" data-action="agenda-day" data-d="'+d+'"><span class="wd">'+dowShort(d)+'</span><span class="wn">'+dayNum(d)+'</span>'+(n?'<span class="wdot">'+n+'</span>':'<span class="wdot empty"></span>')+'</button>';}).join("")+'</div>';
   h+='<h2 class="sec">'+dayLabel(day)+'</h2>';
@@ -1160,6 +1225,7 @@ function viewSettings(){
   var h='<button class="back" data-action="go" data-view="point">← Le point</button><h2 class="sec">Réglages</h2>';
   h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">Code de groupe</div><div class="tiny muted">Partage-le aux frères.</div></div><span class="pill" style="font-size:16px">'+esc(state.code)+'</span></div></div>';
   h+='<div class="card"><div class="row"><div class="grow"><div class="ttl">Moi</div><div class="tiny muted">'+esc(state.me)+'</div></div><button class="btn ghost sm" data-action="switch-me">Changer</button></div></div>';
+  (function(){ var cur=myTz(); var zones=TZ_COMMON.concat(TZ_COMMON.indexOf(cur)<0?[cur]:[]); h+='<div class="card"><div class="ttl" style="margin-bottom:4px">🌍 Ton fuseau horaire</div><div class="tiny muted" style="margin-bottom:6px">Convertit l\'heure des visios chez toi. Détecté automatiquement — change si besoin.</div><div class="row" style="gap:6px"><select id="my-tz" class="field" style="margin:0">'+zones.map(function(z){return '<option value="'+esc(z)+'"'+(z===cur?" selected":"")+'>'+esc(tzCity(z))+' ('+esc(z)+')</option>';}).join("")+'</select><button class="btn sm" data-action="save-mytz">OK</button></div></div>'; })();
   h+=pushSettingsCard();
   h+='<div class="card"><div class="row"><div class="grow">Mode sombre</div><button class="btn ghost sm" data-action="theme">'+(dark?"Désactiver":"Activer")+'</button></div></div>';
   h+='<h2 class="sec">Frères ('+state.members.length+')</h2><div class="card">';
@@ -1371,7 +1437,18 @@ async function handle(a,el){
   if(a==="agenda-scope"){ state.agendaScope=el.getAttribute("data-s"); render(); return; }
   if(a==="agenda-day"){ state.agendaDay=el.getAttribute("data-d"); render(); return; }
   if(a==="reschedule"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{due_date:el.getAttribute("data-to")}); return; }
-  if(a==="open-agenda"){ state.view="tasks"; state.taskTab="agenda"; render(); return; }
+  if(a==="open-agenda"){ state.view="tasks"; state.taskTab="agenda"; state.meetingId=null; render(); return; }
+  if(a==="toggle-propose-visio"){ state.showProposeVisio=!state.showProposeVisio; render(); return; }
+  if(a==="add-meeting"){ addMeeting(val("m-title"),val("m-date"),val("m-time"),val("m-link"),val("m-note"),60); return; }
+  if(a==="open-meeting"){ state.view="meeting"; state.meetingId=parseInt(el.getAttribute("data-id"),10); render(); return; }
+  if(a==="rsvp"){ setRsvp(parseInt(el.getAttribute("data-id"),10), el.getAttribute("data-st")); return; }
+  if(a==="save-rsvp-note"){ saveRsvpNote(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="copy-announce"){ var cam=meetingById(parseInt(el.getAttribute("data-id"),10)); if(cam){ copyText(meetingAnnounce(cam)); el.textContent="Annonce copiée ✓"; } return; }
+  if(a==="copy-link"){ var clm=meetingById(parseInt(el.getAttribute("data-id"),10)); if(clm&&clm.video_url){ copyText(clm.video_url); el.textContent="Lien copié ✓"; } return; }
+  if(a==="cancel-meeting-ask"){ state.confirmCancelMeeting=parseInt(el.getAttribute("data-id"),10); render(); return; }
+  if(a==="cancel-meeting-no"){ state.confirmCancelMeeting=null; render(); return; }
+  if(a==="cancel-meeting-yes"){ cancelMeeting(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="save-mytz"){ var tzv=val("my-tz"); if(tzv){ client().from("team_members").update({tz:tzv}).eq("code",state.code).eq("name",state.me).then(function(){ var mm=(state.members||[]).find(function(x){return x.name===state.me;}); if(mm)mm.tz=tzv; refreshAll(); showToast("Fuseau mis à jour ✓"); }); } return; }
   if(a==="take"){ joinTask(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="drop"){ leaveTask(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="done"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{done:true,done_by:state.me}); return; }
@@ -1482,7 +1559,7 @@ async function joinAs(name){ state.code=state.onbCode||state.code; state.me=name
 function toggleTheme(){ var d=document.documentElement.getAttribute("data-theme")==="dark"; setTheme(d?"light":"dark"); }
 function setTheme(t){ document.documentElement.setAttribute("data-theme",t); lset("team:theme",t); var m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute("content",t==="dark"?"#15120E":"#E0795F"); }
 
-async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); loadReleasesSeen(); await ensureGroup(state.code); await refreshAll(); subscribe(); await refreshPushState(); render(); maybeAutoSync(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
+async function start(){ if(!state.code||!state.me)return; try{ client(); loadNotifSeen(); loadReleasesSeen(); await ensureGroup(state.code); await refreshAll(); ensureMyTz(); subscribe(); await refreshPushState(); render(); maybeAutoSync(); }catch(e){ console.error(e); state.error=(e&&e.message)||"connexion impossible"; render(); } }
 function openIdeaDeepLink(ideaId){ if(!ideaId)return; var id=parseInt(ideaId,10); if(!id||!state.code||!state.me)return; state.view="ideas"; state.openComments[id]=true; markNotifSeen(); render(); setTimeout(function(){ var t=document.getElementById("idea-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
 function openReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; var id=parseInt(releaseId,10); state.view="releases"; markReleasesSeen(); render(); setTimeout(function(){ var t=document.getElementById("release-"+id); if(t&&t.scrollIntoView)t.scrollIntoView({behavior:"smooth",block:"center"}); },100); }
 function openReviewReleaseDeepLink(releaseId){ if(!releaseId||!state.code||!state.me)return; if(!isReleaseOwner()){ openReleaseDeepLink(releaseId); return; } var id=parseInt(releaseId,10); state.view="releaseReview"; state.reviewReleaseId=id; render(); }
@@ -1502,13 +1579,14 @@ function init(){
   // Deep-link initial via ?idea=ID (clic notif push ou partage de lien)
   try{
     var qs=new URLSearchParams(window.location.search);
-    var qi=qs.get("idea"), qr=qs.get("release"), qrr=qs.get("reviewRelease");
-    if(qi||qr||qrr){
+    var qi=qs.get("idea"), qr=qs.get("release"), qrr=qs.get("reviewRelease"), qm=qs.get("meeting");
+    if(qi||qr||qrr||qm){
       var tries=0; var poll=setInterval(function(){ tries++;
         if(state.code&&state.me){ clearInterval(poll);
           if(qi)openIdeaDeepLink(qi);
           if(qr)openReleaseDeepLink(qr);
           if(qrr)openReviewReleaseDeepLink(qrr);
+          if(qm)openMeetingDeepLink(qm);
         } else if(tries>40){ clearInterval(poll); }
       },150);
     }
@@ -1519,11 +1597,12 @@ function init(){
     if(ev.data.type==="open-idea") openIdeaDeepLink(ev.data.ideaId);
     else if(ev.data.type==="open-release") openReleaseDeepLink(ev.data.releaseId);
     else if(ev.data.type==="open-review-release") openReviewReleaseDeepLink(ev.data.releaseId);
+    else if(ev.data.type==="open-meeting") openMeetingDeepLink(ev.data.meetingId);
   }); } }catch(_){}
 }
 if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment,VAPID_PUBLIC:VAPID_PUBLIC,pushSupported:pushSupported,enablePush:enablePush,disablePush:disablePush,refreshPushState:refreshPushState,urlBase64ToUint8Array:urlBase64ToUint8Array,deviceId:deviceId,openIdeaDeepLink:openIdeaDeepLink,publishedReleases:publishedReleases,draftReleases:draftReleases,ideasForRelease:ideasForRelease,releaseForIdea:releaseForIdea,unreadReleasesCount:unreadReleasesCount,publishRelease:publishRelease,updateDraft:updateDraft,deleteDraft:deleteDraft,setDraftIdeas:setDraftIdeas,isReleaseOwner:isReleaseOwner,openReleaseDeepLink:openReleaseDeepLink,openReviewReleaseDeepLink:openReviewReleaseDeepLink};
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment,VAPID_PUBLIC:VAPID_PUBLIC,pushSupported:pushSupported,enablePush:enablePush,disablePush:disablePush,refreshPushState:refreshPushState,urlBase64ToUint8Array:urlBase64ToUint8Array,deviceId:deviceId,openIdeaDeepLink:openIdeaDeepLink,publishedReleases:publishedReleases,draftReleases:draftReleases,ideasForRelease:ideasForRelease,releaseForIdea:releaseForIdea,unreadReleasesCount:unreadReleasesCount,publishRelease:publishRelease,updateDraft:updateDraft,deleteDraft:deleteDraft,setDraftIdeas:setDraftIdeas,isReleaseOwner:isReleaseOwner,openReleaseDeepLink:openReleaseDeepLink,openReviewReleaseDeepLink:openReviewReleaseDeepLink,zonedToUtc:zonedToUtc,detectTz:detectTz,fmtTime:fmtTime,fmtDateTime:fmtDateTime,ymdInTz:ymdInTz,memberTz:memberTz,myTz:myTz,addMeeting:addMeeting,setRsvp:setRsvp,saveRsvpNote:saveRsvpNote,cancelMeeting:cancelMeeting,meetingAnnounce:meetingAnnounce,meetingsUpcoming:meetingsUpcoming,nextMeeting:nextMeeting,ensureMyTz:ensureMyTz,openMeetingDeepLink:openMeetingDeepLink,proposeVisioForm:proposeVisioForm,viewMeeting:viewMeeting,whoBlock:whoBlock,rsvpFor:rsvpFor,myRsvp:myRsvp,tzCity:tzCity};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>

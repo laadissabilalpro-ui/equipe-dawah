@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v30 (Liens directs : un champ 🔗 par plateforme DU FRÈRE (mapping), YouTube exclu = source, saisie du lien crée la repost auto) */
-const CACHE = "lappel-v30";
+/* L'Appel — Équipe · service worker (PWA) — v31 (VISIOS : appels visio + agenda + fuseaux horaires par frère + présence/RSVP + deep-link meeting=) */
+const CACHE = "lappel-v31";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
@@ -58,11 +58,11 @@ self.addEventListener("push", (e) => {
   const title = data.title || "L'Appel — Équipe";
   const body = data.body || "";
   const url = data.url || "./";
-  // tag : un par release/idée/draft pour éviter les doublons à l'écran
   let tag;
   if (url.indexOf("release=") >= 0) tag = "release-" + url.split("release=")[1];
   else if (url.indexOf("reviewRelease=") >= 0) tag = "review-" + url.split("reviewRelease=")[1];
   else if (url.indexOf("idea=") >= 0) tag = "idea-" + url.split("idea=")[1];
+  else if (url.indexOf("meeting=") >= 0) tag = "meeting-" + url.split("meeting=")[1];
   e.waitUntil(self.registration.showNotification(title, {
     body,
     icon: "./icon-192.png",
@@ -77,7 +77,6 @@ self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const data = e.notification.data || {};
   const targetUrl = new URL((data.url || "./"), self.location.href).href;
-  // Détermine quel type de deep-link envoyer aux clients
   let msg = null;
   const u = data.url || "";
   if (u.indexOf("reviewRelease=") >= 0) {
@@ -86,6 +85,8 @@ self.addEventListener("notificationclick", (e) => {
     msg = { type: "open-release", releaseId: parseInt(u.split("release=")[1], 10) };
   } else if (u.indexOf("idea=") >= 0) {
     msg = { type: "open-idea", ideaId: parseInt(u.split("idea=")[1], 10) };
+  } else if (u.indexOf("meeting=") >= 0) {
+    msg = { type: "open-meeting", meetingId: parseInt(u.split("meeting=")[1], 10) };
   }
   e.waitUntil((async () => {
     const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
@@ -98,4 +99,6 @@ self.addEventListener("notificationclick", (e) => {
         }
       } catch (_) {}
     }
-    if (self.clients.op
+    if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+  })());
+});
