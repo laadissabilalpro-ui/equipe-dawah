@@ -293,7 +293,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, argShowFor:null, showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, _sgLoad:null,
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, argShowFor:null, showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), vidLang:lget("team:vidlang","fr"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, _sgLoad:null,
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -672,7 +672,7 @@ async function syncChannel(ch, silent){
     await refreshAll();
   }catch(e){ if(!silent)showToast("Erreur de synchro : "+(e&&e.message||e)); }
 }
-function maybeAutoSync(){ try{ var ch=(state.channels||[])[0]; if(!ch)return; if(!lget("team:ytkey",""))return; var last=parseInt(lget("team:lastsync","0"),10)||0; if(Date.now()-last < 1800000) return; syncChannel(ch, true); }catch(e){} }
+async function maybeAutoSync(){ try{ if(!lget("team:ytkey",""))return; var last=parseInt(lget("team:lastsync","0"),10)||0; if(Date.now()-last < 1800000) return; var chs=(state.channels||[]); for(var i=0;i<chs.length;i++){ if(chs[i]&&chs[i].uploads_playlist_id) await syncChannel(chs[i], true); } }catch(e){} }
 function recitsLeft(){return state.recits.filter(function(r){return !r.done;}).length;}
 function ideasNew(){return state.ideas.filter(function(i){return i.status==="nouvelle";}).length;}
 function shortLabel(s){return String(s).replace(/\s*\(.*?\)\s*/g,"").replace("Poster 1–2 vidéos","Vidéos").replace("Partager l'appel","Appel").replace("Point hebdo équipe","Point hebdo").replace("Réciter","Récit.");}
@@ -811,8 +811,9 @@ function viewVideos(){
   if(!state.dlWarnSeen){ h+='<div class="card" style="background:rgba(224,121,95,.07)"><div class="tiny"><b>Téléchargement via sites tiers</b> — ces sites ont parfois des pubs et de faux boutons « Télécharger ». Clique uniquement le vrai bouton.</div><button class="btn ghost sm" data-action="dl-warn-ok" style="margin-top:6px">J\'ai compris</button></div>'; }
   h+='<input id="v-search" class="field" placeholder="🔎 Rechercher une vidéo (titre ou sujet)" value="'+esc(state.videoSearch)+'">';
   h+='<div class="toolbar">'+tab2("all","Toutes")+tab2("appel","📣 À reposter")+tab2("mensongere","⚠️ À répondre")+'</div>';
+  if((state.channels||[]).length>1){ var FLAG={fr:"🇫🇷",pt:"🇵🇹",es:"🇪🇸",it:"🇮🇹"}; h+='<div class="toolbar">'+(state.channels||[]).slice().sort(function(a,b){return (a.sort||0)-(b.sort||0);}).map(function(c){ return '<button class="tab2'+(state.vidLang===c.key?" on":"")+'" data-action="vid-lang" data-lang="'+esc(c.key)+'">'+(FLAG[c.key]||"🌍")+" "+esc((c.key||"").toUpperCase())+'</button>'; }).join("")+'</div>'; }
   var vq=state.videoSearch.toLowerCase().trim();
-  var list=state.videos.filter(function(v){ if(state.videoFilter!=="all"&&v.kind!==state.videoFilter)return false; if(vq){var hay=((v.title||"")+" "+(v.topic||"")).toLowerCase(); if(hay.indexOf(vq)<0)return false;} return true; });
+  var list=state.videos.filter(function(v){ var lk=(state.vidLang==="fr")?(v.channel_key==="fr"||!v.channel_key):(v.channel_key===state.vidLang); if(!lk)return false; if(state.videoFilter!=="all"&&v.kind!==state.videoFilter)return false; if(vq){var hay=((v.title||"")+" "+(v.topic||"")).toLowerCase(); if(hay.indexOf(vq)<0)return false;} return true; });
   if(!list.length){ h+='<div class="empty">'+(vq?"Aucune vidéo ne correspond.":"Aucune vidéo ici pour l\'instant.")+'</div>'; return h; }
   var dir=(state.vidSort==="old")?1:-1;
   function vdate(v){ return v.published_at||v.created_at||""; }
@@ -1381,6 +1382,7 @@ async function handle(a,el){
   if(a==="copy-arg"){ var ar=state.args.find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); if(ar){copyText(ar.body||"");el.textContent="Copié ✓";} return; }
   if(a==="copy-msg"){ var mv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(mv){ copyText(groupMessage(mv)); el.textContent="Message copié ✓"; } return; }
   if(a==="vid-sort"){ state.vidSort=(state.vidSort==="old")?"recent":"old"; lset("team:vidsort",state.vidSort); render(); return; }
+  if(a==="vid-lang"){ state.vidLang=el.getAttribute("data-lang")||"fr"; lset("team:vidlang",state.vidLang); state.videoSearch=""; render(); return; }
   if(a==="toggle-addvideo"){ state.showAddVideo=!state.showAddVideo; render(); return; }
   if(a==="banner-pick"){ var bpid=parseInt(el.getAttribute("data-id"),10); state.bannerPickFor=(state.bannerPickFor===bpid)?null:bpid; render(); return; }
   if(a==="toggle-args"){ var taid=parseInt(el.getAttribute("data-id"),10); state.argShowFor=(state.argShowFor===taid)?null:taid; render(); return; }

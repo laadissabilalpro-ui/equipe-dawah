@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v26 (fix « Publier » sur mobile : confirmation in-app 2-temps au lieu de window.confirm ignoré en PWA iOS) */
-const CACHE = "lappel-v26";
+/* L'Appel — Équipe · service worker (PWA) — v27 (multi-chaînes : 254 vidéos PT/ES/IT importées + filtre par langue 🇫🇷/🇵🇹/🇪🇸/🇮🇹 dans Vidéos + auto-sync toutes chaînes) */
+const CACHE = "lappel-v27";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
