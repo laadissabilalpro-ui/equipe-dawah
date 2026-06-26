@@ -1,4 +1,4 @@
-// Équipe Dawah — Edge Function send-push v9 (Deno / Supabase) — + rappels visio (type REMINDER)
+// Équipe Dawah — Edge Function send-push v10 (Deno / Supabase) — + rappels visio (REMINDER) + cibles (team_targets)
 // Déclenchée par Database Webhooks sur INSERT/UPDATE dans
 //   team_ideas, team_idea_comments, team_releases, team_meetings.
 // Envoie une web push aux frères du même code (exclut l'auteur).
@@ -62,7 +62,7 @@ Deno.serve(async (req: Request) => {
   // Healthcheck
   if (req.method === "GET") {
     return new Response(
-      JSON.stringify({ ok: true, fn: "send-push", version: "v9", configured: !!(VAPID_PUBLIC && VAPID_PRIVATE && SB_KEY) }),
+      JSON.stringify({ ok: true, fn: "send-push", version: "v10", configured: !!(VAPID_PUBLIC && VAPID_PRIVATE && SB_KEY) }),
       { headers: { "Content-Type": "application/json" } },
     );
   }
@@ -156,6 +156,14 @@ Deno.serve(async (req: Request) => {
     } else {
       return new Response(JSON.stringify({ ignored: "team_meetings " + type }), { headers: { "Content-Type": "application/json" } });
     }
+  } else if (table === "team_targets") {
+    // Nouvelle vidéo cible à commenter → notif à toute l'équipe (sauf l'auteur)
+    if (type !== "INSERT") return new Response(JSON.stringify({ ignored: "team_targets " + type }), { headers: { "Content-Type": "application/json" } });
+    author   = record.created_by || "";
+    title    = `🎯 ${author || "Quelqu'un"} : vidéo à commenter`;
+    bodyText = truncate(record.title || "", 100) + " · postez vos commentaires inshaAllah 🤲";
+    urlPath  = `?target=${record.id}`;
+    routing  = "all-except-author";
   } else {
     return new Response(JSON.stringify({ ignored: "table " + table }), { headers: { "Content-Type": "application/json" } });
   }
