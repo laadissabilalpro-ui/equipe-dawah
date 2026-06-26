@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v31 (VISIOS : appels visio + agenda + fuseaux horaires par frère + présence/RSVP + deep-link meeting=) */
-const CACHE = "lappel-v31";
+/* L'Appel — Équipe · service worker (PWA) — v32 (VISIOS + rappels : push « a proposé une visio » + rappels programmés avant la visio) */
+const CACHE = "lappel-v32";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
