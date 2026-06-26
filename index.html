@@ -358,6 +358,55 @@ function viewMeeting(){ if(!state.ready)return loading(); var m=meetingById(stat
   if(!cancelled && (m.created_by===state.me || state.me==="Bilal")){ if(state.confirmCancelMeeting===m.id){ h+='<div class="card" style="margin-top:8px;border:1px solid #E5484D66"><div class="tiny">Annuler cette visio pour tout le monde ?</div><div class="row" style="gap:7px;margin-top:6px"><button class="btn sm" style="background:#E5484D" data-action="cancel-meeting-yes" data-id="'+m.id+'">Oui, annuler</button><button class="btn ghost sm" data-action="cancel-meeting-no">Non</button></div></div>'; } else { h+='<button class="btn ghost sm block" data-action="cancel-meeting-ask" data-id="'+m.id+'" style="margin-top:6px;color:#E5484D">Annuler la visio</button>'; } }
   return h; }
 function onLiveMeeting(row){ if(!row||row.created_by===state.me)return; showToast("📹 "+(row.created_by||"Quelqu'un")+" propose une visio : "+truncate(row.title,40)); }
+/* ===== CIBLES (vidéos à commenter · campagne) ===== */
+var TARGET_PLATS=["TikTok","YouTube","Instagram","Facebook","Twitter","Snapchat","Autre"];
+function targetCommentsFor(tid){ return (state.targetComments||[]).filter(function(c){return c.target_id===tid;}); }
+function usedByMe(c){ return (c.used_by||[]).indexOf(state.me)>=0; }
+function activeTargets(){ return (state.targets||[]).filter(function(t){return t.status!=="done";}); }
+function safeUrl2(u){ return /^https?:\/\//i.test(u||"")?u:""; }
+function onLiveTarget(row){ if(!row||row.created_by===state.me)return; showToast("🎯 "+(row.created_by||"Quelqu'un")+" a ajouté une vidéo à commenter : "+truncate(row.title,40)); }
+function openTargetDeepLink(id){ if(!id||!state.code||!state.me)return; state.view="targets"; state.targetOpen=parseInt(id,10); render(); }
+async function addTarget(url,plat,title,topic,note){ title=(title||"").trim(); if(!title){ showToast("Donne un titre/sujet à la vidéo."); return; } var ins=await client().from("team_targets").insert({code:state.code,url:(url||"").trim()||null,platform:plat||null,title:title,topic:(topic||"").trim()||null,note:(note||"").trim()||null,created_by:state.me,status:"active"}).select().single(); state.showAddTarget=false; if(ins&&ins.data){ state.targetOpen=ins.data.id; } await refreshAll(); render(); showToast("Vidéo ajoutée ✓"); }
+async function addTargetComment(tid,text){ text=(text||"").trim(); if(!text)return; await client().from("team_target_comments").insert({code:state.code,target_id:tid,text:text,author:state.me,used_by:[]}); await refreshAll(); showToast("Commentaire ajouté ✓"); }
+async function copyTargetComment(cid){ var c=(state.targetComments||[]).find(function(x){return x.id===cid;}); if(!c)return; copyText(c.text); var ub=(c.used_by||[]).slice(); if(ub.indexOf(state.me)<0){ ub.push(state.me); await client().from("team_target_comments").update({used_by:ub}).eq("id",cid); await refreshAll(); } showToast("Copié ✓ — colle-le en commentaire 🤲"); }
+async function delTarget(id){ await client().from("team_targets").delete().eq("id",id); await client().from("team_target_comments").delete().eq("target_id",id); await refreshAll(); }
+async function delTargetComment(id){ await client().from("team_target_comments").delete().eq("id",id); await refreshAll(); }
+async function setTargetStatus(id,st){ await client().from("team_targets").update({status:st}).eq("id",id); state.targetOpen=null; await refreshAll(); }
+function targetCard(t){
+  var cs=targetCommentsFor(t.id); var open=(state.targetOpen===t.id); var su=safeUrl2(t.url);
+  var h='<div class="card" id="tgt-'+t.id+'">';
+  h+='<div class="row"><div class="grow"><div class="ttl small">'+(t.status==="done"?'✓ ':'')+esc(t.title)+'</div><div class="tiny muted">'+(t.platform?'<span class="pill" style="font-size:10px">'+esc(t.platform)+'</span> ':'')+(t.topic?esc(t.topic)+' · ':'')+'par '+esc(t.created_by||"?")+'</div></div></div>';
+  if(t.note){ h+='<div class="pn" style="margin-top:6px">'+esc(t.note)+'</div>'; }
+  h+='<div class="row" style="gap:6px;margin-top:8px">'+(su?'<a class="btn ghost sm" href="'+esc(su)+'" target="_blank" rel="noopener">▶ Ouvrir</a>':'')+'<button class="btn ghost sm grow" data-action="target-toggle" data-id="'+t.id+'">💬 Commentaires ('+cs.length+')'+(open?' ▾':'')+'</button></div>';
+  if(open){
+    h+='<div style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px">';
+    if(!cs.length){ h+='<div class="tiny muted" style="margin-bottom:6px">Aucun commentaire préparé. Ajoutes-en plusieurs (variés) — chaque frère en copiera un différent.</div>'; }
+    cs.forEach(function(c){ var mine=usedByMe(c); var ub=(c.used_by||[]);
+      h+='<div class="card" style="background:rgba(0,0,0,.03);padding:9px;margin-bottom:6px"><div style="white-space:pre-wrap;line-height:1.5;font-size:14px">'+esc(c.text)+'</div><div class="row" style="gap:6px;margin-top:6px;align-items:center"><button class="btn '+(mine?"ghost ":"")+'sm" data-action="copy-target-comment" data-id="'+c.id+'">'+(mine?"✓ Copié — recopier":"📋 Copier")+'</button><div class="tiny muted grow">'+(ub.length?'✋ '+ub.length+' : '+ub.map(esc).join(", "):'<i>personne encore</i>')+'</div><button class="copybtn" data-action="del-target-comment" data-id="'+c.id+'">✕</button></div></div>';
+    });
+    h+='<textarea id="tc-'+t.id+'" class="field" placeholder="Nouveau commentaire à préparer…" rows="2" style="margin-top:2px"></textarea><div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm" data-action="add-target-comment" data-id="'+t.id+'">+ Ajouter</button>'+((t.created_by===state.me||state.me==="Bilal")?((t.status==="done")?'<button class="btn ghost sm" data-action="target-reopen" data-id="'+t.id+'">↩︎ Rouvrir</button>':'<button class="btn ghost sm" data-action="target-done" data-id="'+t.id+'">✓ Traité</button>')+'<button class="copybtn" data-action="del-target" data-id="'+t.id+'">🗑</button>':'')+'</div>';
+    h+='</div>';
+  }
+  h+='</div>'; return h;
+}
+function viewTargets(){
+  if(!state.ready)return loading();
+  var h='<div class="card"><div class="ttl">🎯 Vidéos à commenter</div><div class="tiny muted">Vidéos (mensonges, ou sujets ouverts au message) où on intervient ensemble. Chacun copie un commentaire <b>différent</b> → effet de masse 🤲</div></div>';
+  h+='<button class="btn ghost sm block" data-action="toggle-add-target" style="margin-bottom:6px">➕ '+(state.showAddTarget?"Fermer":"Ajouter une vidéo cible")+'</button>';
+  if(state.showAddTarget){ h+='<div class="card"><input id="tg-title" class="field" placeholder="Sujet / titre (ex. Rashad Khalifa — miracle 19)">'+
+    '<input id="tg-url" class="field" placeholder="Lien de la vidéo (TikTok…)">'+
+    '<div class="row"><select id="tg-plat" class="field" style="margin:0">'+TARGET_PLATS.map(function(p){return '<option value="'+esc(p)+'"'+(p==="TikTok"?" selected":"")+'>'+esc(p)+'</option>';}).join("")+'</select><input id="tg-topic" class="field" style="margin:0" placeholder="Thème (ex. Rashad Khalifa)"></div>'+
+    '<input id="tg-note" class="field" placeholder="Note / angle d\'approche (optionnel)">'+
+    '<button class="btn block" data-action="add-target">Ajouter</button></div>'; }
+  var plats=["all"].concat(TARGET_PLATS);
+  h+='<div class="toolbar">'+plats.map(function(p){ return '<button class="tab2'+(state.targetPlat===p?" on":"")+'" data-action="target-plat" data-p="'+esc(p)+'">'+(p==="all"?"Toutes":esc(p))+'</button>'; }).join("")+'</div>';
+  var act=activeTargets().filter(function(t){ return state.targetPlat==="all"||t.platform===state.targetPlat; });
+  if(!act.length){ h+='<div class="empty">Aucune vidéo cible'+(state.targetPlat!=="all"?(" sur "+esc(state.targetPlat)):"")+'. Ajoute-en une ☝️</div>'; }
+  act.forEach(function(t){ h+=targetCard(t); });
+  var done=(state.targets||[]).filter(function(t){return t.status==="done";});
+  if(done.length){ h+='<div class="row" style="margin:12px 4px 6px"><div class="grow"></div><button class="btn ghost sm" data-action="toggle-done-targets">'+(state.showDoneTargets?"Masquer traitées":"Voir traitées ("+done.length+")")+'</button></div>'; if(state.showDoneTargets){ done.forEach(function(t){ h+=targetCard(t); }); } }
+  return h;
+}
 
 function dParts(s){var p=String(s).split("-");return new Date(+p[0],(+p[1])-1,+p[2]);}
 function dowShort(s){return DOW[dParts(s).getDay()];}
@@ -370,8 +419,8 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, msgPickFor:null, argShowFor:null, meetingId:null, showProposeVisio:false, confirmCancelMeeting:null, remindEditFor:null, showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), vidLang:lget("team:vidlang","fr"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, verseText:{}, reciteSurah:null, reciteFrom:null, reciteTo:null, playingN:null, paused:false, _rvLoad:null, _sgLoad:null,
-  members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[], meetings:[], rsvps:[],
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, msgPickFor:null, argShowFor:null, meetingId:null, showProposeVisio:false, confirmCancelMeeting:null, remindEditFor:null, targetOpen:null, showAddTarget:false, showDoneTargets:false, targetPlat:lget("team:targetplat","all"), showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), vidLang:lget("team:vidlang","fr"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, verseText:{}, reciteSurah:null, reciteFrom:null, reciteTo:null, playingN:null, paused:false, _rvLoad:null, _sgLoad:null,
+  members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[], meetings:[], rsvps:[], targets:[], targetComments:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
   releases:[], releaseIdeas:[], releasesSeen:0, reviewReleaseId:null, confirmPublish:null,
@@ -428,13 +477,15 @@ async function refreshAll(){
     c.from("team_argument_videos").select("*").eq("code",code),
     c.from("team_channels").select("*").eq("code",code).order("sort",{ascending:true}),
     c.from("team_meetings").select("*").eq("code",code).order("starts_at",{ascending:true}),
-    c.from("team_meeting_rsvp").select("*").eq("code",code)
+    c.from("team_meeting_rsvp").select("*").eq("code",code),
+    c.from("team_targets").select("*").eq("code",code).order("created_at",{ascending:false}),
+    c.from("team_target_comments").select("*").eq("code",code).order("created_at",{ascending:true})
   ]);
   state.members=res[0].data||[]; state.duties=res[1].data||[]; state.logs=res[2].data||[]; state.tasks=res[3].data||[];
   state.videos=res[4].data||[]; state.reposts=res[5].data||[]; state.args=res[6].data||[]; state.recits=res[7].data||[]; state.ideas=res[8].data||[];
   state.votes=res[9].data||[]; state.comments=res[10].data||[];
   state.releases=res[11].data||[]; state.releaseIdeas=res[12].data||[];
-  state.dlServices=res[13].data||[]; state.argVideos=res[14].data||[]; state.channels=res[15].data||[]; state.meetings=res[16].data||[]; state.rsvps=res[17].data||[];
+  state.dlServices=res[13].data||[]; state.argVideos=res[14].data||[]; state.channels=res[15].data||[]; state.meetings=res[16].data||[]; state.rsvps=res[17].data||[]; state.targets=res[18].data||[]; state.targetComments=res[19].data||[];
   state.ready=true; render();
 }
 var debRefresh = debounce(function(){ refreshAll().catch(function(e){console.warn(e);}); }, 260);
@@ -443,7 +494,7 @@ function subscribe(){
   var c=client();
   if(channel){ try{c.removeChannel(channel);}catch(e){} }
   var f="code=eq."+state.code;
-  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas","team_idea_votes","team_idea_comments","team_releases","team_release_ideas","team_dl_services","team_argument_videos","team_channels","team_meetings","team_meeting_rsvp"];
+  var tables=["team_members","team_duties","team_duty_log","team_tasks","team_videos","team_video_reposts","team_arguments","team_recitations","team_ideas","team_idea_votes","team_idea_comments","team_releases","team_release_ideas","team_dl_services","team_argument_videos","team_channels","team_meetings","team_meeting_rsvp","team_targets","team_target_comments"];
   channel=c.channel("team-"+state.code);
   tables.forEach(function(t){ channel.on("postgres_changes",{event:"*",schema:"public",table:t,filter:f},debRefresh); });
   // Toasts en direct sur nouvelles idées et nouveaux commentaires (pas par soi-même)
@@ -451,6 +502,7 @@ function subscribe(){
   channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_idea_comments",filter:f},function(p){ onLiveComment(p&&p.new); });
   channel.on("postgres_changes",{event:"UPDATE",schema:"public",table:"team_releases",filter:f},function(p){ onLiveReleasePublished(p&&p.new, p&&p.old); });
   channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_meetings",filter:f},function(p){ onLiveMeeting(p&&p.new); });
+  channel.on("postgres_changes",{event:"INSERT",schema:"public",table:"team_targets",filter:f},function(p){ onLiveTarget(p&&p.new); });
   channel.subscribe();
 }
 
@@ -815,6 +867,7 @@ function render(){
   else if(v==="duties")body=viewDuties();
   else if(v==="meeting")body=viewMeeting();
   else if(v==="recite")body=viewRecite();
+  else if(v==="targets")body=viewTargets();
   else if(v==="settings")body=viewSettings();
   app.innerHTML=header()+'<main class="fade">'+body+'</main>'+nav()+(state.sheet?sheet():"");
 }
@@ -835,6 +888,7 @@ function nav(){
 function sheet(){
   return '<div class="sheet" data-action="sheet-close"><div class="inner" data-stop="1">'+
     '<div class="opt" data-action="go" data-view="duties">'+IC.duties+' Mes devoirs</div>'+
+    '<div class="opt" data-action="go" data-view="targets">🎯 Vidéos à commenter</div>'+
     '<div class="opt" data-action="go" data-view="ideas">'+IC.idea+' Idées</div>'+
     '<div class="opt" data-action="go" data-view="settings">'+IC.gear+' Réglages</div>'+
     '<div class="center" style="margin-top:12px"><button class="btn ghost sm" data-action="sheet-close">Fermer</button></div></div></div>';
@@ -855,7 +909,8 @@ function viewPoint(){
     link("videos",IC.videos,"Vidéos ("+vids+")")+
     link("args",IC.args,"Argumentaires ("+state.args.length+")")+
     link("recits",IC.recits,"Récitations")+
-    link("ideas",IC.idea,"Idées"+(ide?" ("+ide+")":""))+'</div>';
+    link("ideas",IC.idea,"Idées"+(ide?" ("+ide+")":""))+
+    '<button class="linkcard" data-action="go" data-view="targets">🎯<span class="grow">Vidéos à commenter'+(activeTargets().length?" ("+activeTargets().length+")":"")+'</span></button>'+'</div>';
   h+=pushPromptCard();
   h+=draftPromptCard();
   var nm=nextMeeting(); if(nm){ var nms=Date.parse(nm.starts_at); h+='<div class="card" data-action="open-meeting" data-id="'+nm.id+'" style="cursor:pointer;border-left:4px solid var(--accent)"><div class="row"><span style="font-size:22px">📹</span><div class="grow"><div class="ttl small">Prochaine visio · '+esc(truncate(nm.title,30))+'</div><div class="tiny muted">'+fmtDateTime(nms,myTz())+' (ton heure) · '+rsvpCount(nm.id,"present")+' présent(s)</div></div>'+(myRsvp(nm.id)?'':'<span class="dpill" style="background:var(--accent);color:#fff">réponds</span>')+'</div></div>'; }
@@ -1483,6 +1538,17 @@ async function handle(a,el){
   if(a==="reschedule"){ taskUpdate(parseInt(el.getAttribute("data-id"),10),{due_date:el.getAttribute("data-to")}); return; }
   if(a==="open-agenda"){ state.view="tasks"; state.taskTab="agenda"; state.meetingId=null; render(); return; }
   if(a==="toggle-propose-visio"){ state.showProposeVisio=!state.showProposeVisio; render(); return; }
+  if(a==="toggle-add-target"){ state.showAddTarget=!state.showAddTarget; render(); return; }
+  if(a==="add-target"){ addTarget(val("tg-url"),val("tg-plat"),val("tg-title"),val("tg-topic"),val("tg-note")); return; }
+  if(a==="target-plat"){ state.targetPlat=el.getAttribute("data-p"); lset("team:targetplat",state.targetPlat); render(); return; }
+  if(a==="target-toggle"){ var tt=parseInt(el.getAttribute("data-id"),10); state.targetOpen=(state.targetOpen===tt)?null:tt; render(); return; }
+  if(a==="add-target-comment"){ var atc=parseInt(el.getAttribute("data-id"),10); var ta=document.getElementById("tc-"+atc); addTargetComment(atc, ta?ta.value:""); return; }
+  if(a==="copy-target-comment"){ copyTargetComment(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="del-target-comment"){ delTargetComment(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="target-done"){ setTargetStatus(parseInt(el.getAttribute("data-id"),10),"done"); return; }
+  if(a==="target-reopen"){ setTargetStatus(parseInt(el.getAttribute("data-id"),10),"active"); return; }
+  if(a==="del-target"){ delTarget(parseInt(el.getAttribute("data-id"),10)); return; }
+  if(a==="toggle-done-targets"){ state.showDoneTargets=!state.showDoneTargets; render(); return; }
   if(a==="add-meeting"){ addMeeting(val("m-title"),val("m-date"),val("m-time"),val("m-link"),val("m-note"),val("m-remind")); return; }
   if(a==="open-meeting"){ state.view="meeting"; state.meetingId=parseInt(el.getAttribute("data-id"),10); render(); return; }
   if(a==="rsvp"){ setRsvp(parseInt(el.getAttribute("data-id"),10), el.getAttribute("data-st")); return; }
@@ -1635,14 +1701,15 @@ function init(){
   // Deep-link initial via ?idea=ID (clic notif push ou partage de lien)
   try{
     var qs=new URLSearchParams(window.location.search);
-    var qi=qs.get("idea"), qr=qs.get("release"), qrr=qs.get("reviewRelease"), qm=qs.get("meeting");
-    if(qi||qr||qrr||qm){
+    var qi=qs.get("idea"), qr=qs.get("release"), qrr=qs.get("reviewRelease"), qm=qs.get("meeting"), qt=qs.get("target");
+    if(qi||qr||qrr||qm||qt){
       var tries=0; var poll=setInterval(function(){ tries++;
         if(state.code&&state.me){ clearInterval(poll);
           if(qi)openIdeaDeepLink(qi);
           if(qr)openReleaseDeepLink(qr);
           if(qrr)openReviewReleaseDeepLink(qrr);
           if(qm)openMeetingDeepLink(qm);
+          if(qt)openTargetDeepLink(qt);
         } else if(tries>40){ clearInterval(poll); }
       },150);
     }
@@ -1654,11 +1721,12 @@ function init(){
     else if(ev.data.type==="open-release") openReleaseDeepLink(ev.data.releaseId);
     else if(ev.data.type==="open-review-release") openReviewReleaseDeepLink(ev.data.releaseId);
     else if(ev.data.type==="open-meeting") openMeetingDeepLink(ev.data.meetingId);
+    else if(ev.data.type==="open-target") openTargetDeepLink(ev.data.targetId);
   }); } }catch(_){}
 }
 if(window.supabase||document.readyState!=="loading"){ ready(); } else { window.addEventListener("DOMContentLoaded",ready); }
 function ready(){ try{ init(); }catch(e){ console.error(e); app.innerHTML='<div class="onb center muted">Erreur: '+esc(e.message)+'</div>'; } }
-window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment,VAPID_PUBLIC:VAPID_PUBLIC,pushSupported:pushSupported,enablePush:enablePush,disablePush:disablePush,refreshPushState:refreshPushState,urlBase64ToUint8Array:urlBase64ToUint8Array,deviceId:deviceId,openIdeaDeepLink:openIdeaDeepLink,publishedReleases:publishedReleases,draftReleases:draftReleases,ideasForRelease:ideasForRelease,releaseForIdea:releaseForIdea,unreadReleasesCount:unreadReleasesCount,publishRelease:publishRelease,updateDraft:updateDraft,deleteDraft:deleteDraft,setDraftIdeas:setDraftIdeas,isReleaseOwner:isReleaseOwner,openReleaseDeepLink:openReleaseDeepLink,openReviewReleaseDeepLink:openReviewReleaseDeepLink,zonedToUtc:zonedToUtc,detectTz:detectTz,fmtTime:fmtTime,fmtDateTime:fmtDateTime,ymdInTz:ymdInTz,memberTz:memberTz,myTz:myTz,addMeeting:addMeeting,setRsvp:setRsvp,saveRsvpNote:saveRsvpNote,cancelMeeting:cancelMeeting,meetingAnnounce:meetingAnnounce,meetingsUpcoming:meetingsUpcoming,nextMeeting:nextMeeting,ensureMyTz:ensureMyTz,openMeetingDeepLink:openMeetingDeepLink,proposeVisioForm:proposeVisioForm,viewMeeting:viewMeeting,whoBlock:whoBlock,rsvpFor:rsvpFor,myRsvp:myRsvp,tzCity:tzCity,remindLabel:remindLabel,setRemind:setRemind,REMIND_OPTS:REMIND_OPTS,fetchVerses:fetchVerses,cachedVerses:cachedVerses,viewRecite:viewRecite,playVerseN:playVerseN,playIdx:playIdx,stopAudio:stopAudio,audioPause:audioPause,audioResume:audioResume,audioPrev:audioPrev,audioNext:audioNext,audioVerses:audioVerses,mmss:mmss,audioSeek:audioSeek,onAudioTime:onAudioTime};
+window.__APP__={state:state,render:render,handle:handle,ymd:ymd,weekStart:weekStart,quranLink:quranLink,today:today,week7:week7,dayLabel:dayLabel,taskAssignees:taskAssignees,DEFAULT_RECITS:DEFAULT_RECITS,recitLabel:recitLabel,SURAHS:SURAHS,surahName:surahName,surahStat:surahStat,ayahTotal:ayahTotal,votesFor:votesFor,myVote:myVote,commentsFor:commentsFor,toggleVote:toggleVote,addComment:addComment,notifEvents:notifEvents,unreadCount:unreadCount,markNotifSeen:markNotifSeen,loadNotifSeen:loadNotifSeen,onLiveIdea:onLiveIdea,onLiveComment:onLiveComment,VAPID_PUBLIC:VAPID_PUBLIC,pushSupported:pushSupported,enablePush:enablePush,disablePush:disablePush,refreshPushState:refreshPushState,urlBase64ToUint8Array:urlBase64ToUint8Array,deviceId:deviceId,openIdeaDeepLink:openIdeaDeepLink,publishedReleases:publishedReleases,draftReleases:draftReleases,ideasForRelease:ideasForRelease,releaseForIdea:releaseForIdea,unreadReleasesCount:unreadReleasesCount,publishRelease:publishRelease,updateDraft:updateDraft,deleteDraft:deleteDraft,setDraftIdeas:setDraftIdeas,isReleaseOwner:isReleaseOwner,openReleaseDeepLink:openReleaseDeepLink,openReviewReleaseDeepLink:openReviewReleaseDeepLink,zonedToUtc:zonedToUtc,detectTz:detectTz,fmtTime:fmtTime,fmtDateTime:fmtDateTime,ymdInTz:ymdInTz,memberTz:memberTz,myTz:myTz,addMeeting:addMeeting,setRsvp:setRsvp,saveRsvpNote:saveRsvpNote,cancelMeeting:cancelMeeting,meetingAnnounce:meetingAnnounce,meetingsUpcoming:meetingsUpcoming,nextMeeting:nextMeeting,ensureMyTz:ensureMyTz,openMeetingDeepLink:openMeetingDeepLink,proposeVisioForm:proposeVisioForm,viewMeeting:viewMeeting,whoBlock:whoBlock,rsvpFor:rsvpFor,myRsvp:myRsvp,tzCity:tzCity,remindLabel:remindLabel,setRemind:setRemind,REMIND_OPTS:REMIND_OPTS,fetchVerses:fetchVerses,cachedVerses:cachedVerses,viewRecite:viewRecite,playVerseN:playVerseN,playIdx:playIdx,stopAudio:stopAudio,audioPause:audioPause,audioResume:audioResume,audioPrev:audioPrev,audioNext:audioNext,audioVerses:audioVerses,mmss:mmss,audioSeek:audioSeek,onAudioTime:onAudioTime,viewTargets:viewTargets,addTarget:addTarget,addTargetComment:addTargetComment,copyTargetComment:copyTargetComment,targetCommentsFor:targetCommentsFor,activeTargets:activeTargets,openTargetDeepLink:openTargetDeepLink,setTargetStatus:setTargetStatus};
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 })();
 </script>

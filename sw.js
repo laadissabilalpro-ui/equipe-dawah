@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v36 (Récitation : barre de progression audio seekable + contrôles sur le verset en cours + auto-scroll) */
-const CACHE = "lappel-v36";
+/* L'Appel — Équipe · service worker (PWA) — v37 (Section « Vidéos à commenter » : cibles + commentaires de campagne à copier-coller + push/deep-link target=) */
+const CACHE = "lappel-v37";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
@@ -63,6 +63,7 @@ self.addEventListener("push", (e) => {
   else if (url.indexOf("reviewRelease=") >= 0) tag = "review-" + url.split("reviewRelease=")[1];
   else if (url.indexOf("idea=") >= 0) tag = "idea-" + url.split("idea=")[1];
   else if (url.indexOf("meeting=") >= 0) tag = "meeting-" + url.split("meeting=")[1];
+  else if (url.indexOf("target=") >= 0) tag = "target-" + url.split("target=")[1];
   e.waitUntil(self.registration.showNotification(title, {
     body,
     icon: "./icon-192.png",
@@ -87,6 +88,8 @@ self.addEventListener("notificationclick", (e) => {
     msg = { type: "open-idea", ideaId: parseInt(u.split("idea=")[1], 10) };
   } else if (u.indexOf("meeting=") >= 0) {
     msg = { type: "open-meeting", meetingId: parseInt(u.split("meeting=")[1], 10) };
+  } else if (u.indexOf("target=") >= 0) {
+    msg = { type: "open-target", targetId: parseInt(u.split("target=")[1], 10) };
   }
   e.waitUntil((async () => {
     const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
