@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v33 (Récitation avec phonétique in-app : Arabe + translittération api.quran.com) */
-const CACHE = "lappel-v33";
+/* L'Appel — Équipe · service worker (PWA) — v34 (Récitation : audio par verset (Alafasy) + saisie de versets perso + phonétique) */
+const CACHE = "lappel-v34";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
