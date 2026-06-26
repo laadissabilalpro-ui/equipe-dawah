@@ -1,4 +1,4 @@
-// Équipe Dawah — Edge Function send-push v7 (Deno / Supabase)
+// Équipe Dawah — Edge Function send-push v9 (Deno / Supabase) — + rappels visio (type REMINDER)
 // Déclenchée par Database Webhooks sur INSERT/UPDATE dans
 //   team_ideas, team_idea_comments, team_releases, team_meetings.
 // Envoie une web push aux frères du même code (exclut l'auteur).
@@ -53,7 +53,7 @@ export function pushTitle(table: string, record: any, op: "INSERT"|"UPDATE" = "I
     return `✨ Nouveauté · ${t}`;
   }
   if (table === "team_meetings") {
-    return `📹 ${author} propose une visio`;
+    return `📹 ${author} a proposé une visio`;
   }
   return "L'Appel — Équipe";
 }
@@ -62,7 +62,7 @@ Deno.serve(async (req: Request) => {
   // Healthcheck
   if (req.method === "GET") {
     return new Response(
-      JSON.stringify({ ok: true, fn: "send-push", version: "v7", configured: !!(VAPID_PUBLIC && VAPID_PRIVATE && SB_KEY) }),
+      JSON.stringify({ ok: true, fn: "send-push", version: "v9", configured: !!(VAPID_PUBLIC && VAPID_PRIVATE && SB_KEY) }),
       { headers: { "Content-Type": "application/json" } },
     );
   }
@@ -139,13 +139,23 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ ignored: `team_releases ${type} status=${record.status} old=${oldRec?.status}` }), { headers: { "Content-Type": "application/json" } });
     }
   } else if (table === "team_meetings") {
-    // Nouvelle visio proposée → notif à tous sauf l'organisateur ("signale ta présence")
-    if (type !== "INSERT") return new Response(JSON.stringify({ ignored: "team_meetings " + type }), { headers: { "Content-Type": "application/json" } });
-    author   = record.created_by || "";
-    title    = pushTitle(table, record, "INSERT");
-    bodyText = truncate(record.title || "", 120) + " — signale ta présence 🙏";
-    urlPath  = `?meeting=${record.id}`;
-    routing  = "all-except-author";
+    if (type === "REMINDER") {
+      // Rappel programmé avant la visio → push à toute l'équipe
+      author   = "";
+      title    = "⏰ Rappel : visio bientôt";
+      bodyText = truncate(record.title || "", 100) + " · ça commence bientôt inshaAllah 🤲";
+      urlPath  = `?meeting=${record.id}`;
+      routing  = "all-except-author";
+    } else if (type === "INSERT") {
+      // Nouvelle visio proposée → notif à tous sauf l'organisateur ("signale ta présence")
+      author   = record.created_by || "";
+      title    = pushTitle(table, record, "INSERT");
+      bodyText = truncate(record.title || "", 100) + " · Signale ta présence inshaAllah 🤲";
+      urlPath  = `?meeting=${record.id}`;
+      routing  = "all-except-author";
+    } else {
+      return new Response(JSON.stringify({ ignored: "team_meetings " + type }), { headers: { "Content-Type": "application/json" } });
+    }
   } else {
     return new Response(JSON.stringify({ ignored: "table " + table }), { headers: { "Content-Type": "application/json" } });
   }
