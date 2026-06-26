@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v35 (Récitation : traduction FR (Hamidullah) + lecteur audio pause/reprise/précédent/suivant) */
-const CACHE = "lappel-v35";
+/* L'Appel — Équipe · service worker (PWA) — v36 (Récitation : barre de progression audio seekable + contrôles sur le verset en cours + auto-scroll) */
+const CACHE = "lappel-v36";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
