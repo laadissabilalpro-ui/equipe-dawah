@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v37 (Section « Vidéos à commenter » : cibles + commentaires de campagne à copier-coller + push/deep-link target=) */
-const CACHE = "lappel-v37";
+/* L'Appel — Équipe · service worker (PWA) — v38 (Devoirs : bande de progression par devoir + « Mes devoirs » tous + repost vidéo → +1 devoir du jour) */
+const CACHE = "lappel-v38";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 

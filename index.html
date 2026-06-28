@@ -419,7 +419,7 @@ function fallbackCopy(t){ try{var ta=document.createElement("textarea");ta.value
 var state = {
   code: lget("team:code",""), me: lget("team:me",""),
   view: "point", videoId:null, sheet:false,
-  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, msgPickFor:null, argShowFor:null, meetingId:null, showProposeVisio:false, confirmCancelMeeting:null, remindEditFor:null, targetOpen:null, showAddTarget:false, showDoneTargets:false, targetPlat:lget("team:targetplat","all"), showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), vidLang:lget("team:vidlang","fr"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, verseText:{}, reciteSurah:null, reciteFrom:null, reciteTo:null, playingN:null, paused:false, _rvLoad:null, _sgLoad:null,
+  videoFilter:"all", argQuery:"", ideaFilter:"all", taskTab:"board", agendaScope:"team", agendaDay:"", hideDone:lget("team:hideDone","")==="1", openSurah:null, recSearch:"", dutyBro:"", dutyEdit:null, showDoneIdeas:false, cdEdit:null, videoSearch:"", bannerPickFor:null, msgPickFor:null, argShowFor:null, meetingId:null, showProposeVisio:false, confirmCancelMeeting:null, remindEditFor:null, targetOpen:null, showAddTarget:false, showDoneTargets:false, targetPlat:lget("team:targetplat","all"), repostAskFor:null, showAddVideo:false, showAddArg:null, dlPickFor:null, argLinkFor:null, dlWarnSeen:lget("team:dlwarn","")==="1", vidSort:lget("team:vidsort","recent"), vidLang:lget("team:vidlang","fr"), ideaSort:lget("team:ideasort","prio"), verseLens:{}, verseText:{}, reciteSurah:null, reciteFrom:null, reciteTo:null, playingN:null, paused:false, _rvLoad:null, _sgLoad:null,
   members:[], duties:[], logs:[], tasks:[], videos:[], reposts:[], args:[], recits:[], ideas:[], dlServices:[], argVideos:[], channels:[], meetings:[], rsvps:[], targets:[], targetComments:[],
   votes:[], comments:[], openComments:{}, notifSeen:0, toast:null, _toastT:null,
   pushState:"unknown", pushSub:null, pushPromptDismissed:lget("team:push_prompt_dismissed_v4","")==="1",
@@ -533,11 +533,16 @@ async function delCommonDuty(key){ if(window.confirm&&!window.confirm("Supprimer
 
 async function addVideo(title,topic,kind,url,platform){ if(!title.trim())return; var u=(url||"").trim()||null; var yid=ytId(u); await client().from("team_videos").insert({code:state.code,title:title.trim(),topic:(topic||"").trim()||null,kind:kind||"appel",url:u,platform:(platform||"").trim()||null,yt_id:yid||null,thumbnail_url:yid?ytThumb(yid):null,is_short:(/\/shorts\//.test(u||"")||null),added_by:state.me}); await refreshAll(); }
 async function delVideo(id){ await client().from("team_videos").delete().eq("id",id); state.view="videos"; state.videoId=null; await refreshAll(); }
+function posterDuty(){ var dl=dailyDuties(state.me); return dl.find(function(d){return /post|vid[ée]o|diffus/i.test(d.label);})||dl[0]||null; }
+function repostAskCard(){ var a=state.repostAskFor; if(!a)return ""; var d=(state.duties||[]).find(function(x){return x.id===a.d;}); var lbl=d?d.label:"Poster une vidéo"; var c=countOn(state.me,a.d,today()),tg=(d&&d.target)||1; return '<div class="card" style="margin-top:6px;background:rgba(0,0,0,.05)"><div class="tiny">✅ Posté sur <b>'+esc(a.p)+'</b>. Compter pour ton devoir « '+esc(lbl)+' » du jour ? <span class="muted">('+c+'/'+tg+')</span></div><div class="row" style="gap:7px;margin-top:6px"><button class="btn sm" data-action="repost-duty-yes">Oui, +1 ✓</button><button class="btn ghost sm" data-action="repost-duty-no">Non merci</button></div></div>'; }
 async function toggleRepost(videoId,platform){
   var ex=state.reposts.find(function(r){return r.video_id===videoId&&r.member===state.me&&r.platform===platform;});
+  var wasOff=!ex;
   if(ex) await client().from("team_video_reposts").delete().eq("id",ex.id);
   else await client().from("team_video_reposts").insert({code:state.code,video_id:videoId,member:state.me,platform:platform});
   await refreshAll();
+  if(wasOff){ var pd=posterDuty(); if(pd && countOn(state.me,pd.id,today())<(pd.target||1)){ state.repostAskFor={v:videoId,p:platform,d:pd.id}; } else { state.repostAskFor=null; } } else { state.repostAskFor=null; }
+  render();
 }
 async function addArgument(topic,title,body,ref,videoId){ if(!title.trim())return; var r=await client().from("team_arguments").insert({code:state.code,topic:(topic||"").trim()||null,title:title.trim(),body:(body||"").trim()||null,ref:(ref||"").trim()||null,video_id:videoId||null,added_by:state.me}).select(); var aid=r&&r.data&&r.data[0]&&r.data[0].id; if(aid&&videoId){ await client().from("team_argument_videos").upsert({code:state.code,argument_id:aid,video_id:videoId},{onConflict:"code,argument_id,video_id",ignoreDuplicates:true}); } await refreshAll(); }
 async function delArgument(id){ await client().from("team_arguments").delete().eq("id",id); await refreshAll(); }
@@ -924,24 +929,33 @@ function viewPoint(){
   h+='<button class="btn ghost sm block" data-action="open-agenda" style="margin-top:8px">Ouvrir l\'agenda →</button></div>';
 
   // mes devoirs du jour (rapide)
-  h+='<h2 class="sec">Mes devoirs du jour</h2><div class="card">';
-  if(!dd.length) h+='<div class="muted small">Aucun devoir quotidien.</div>';
-  dd.forEach(function(d){var c=countOn(state.me,d.id,tdy),ok=c>=(d.target||1);
-    h+='<div class="row" style="padding:5px 0"><div class="grow"><b>'+esc(d.label)+'</b></div>'+
-      '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓ "+c:"·")+'</span>'+
+  h+='<h2 class="sec">Mes devoirs</h2><div class="card">';
+  var myAll=dailyDuties(state.me).concat(weeklyDuties(state.me)).concat(monthlyDuties(state.me));
+  if(!myAll.length) h+='<div class="muted small">Aucun devoir.</div>';
+  myAll.forEach(function(d){ var isDaily=(d.cadence==="per_day"); var c=isDaily?countOn(state.me,d.id,tdy):dutyCount(state.me,d); var tg=d.target||1, ok=c>=tg; var per=(d.cadence==="per_month"?"/mois":(d.cadence==="per_week"?"/sem.":"/jour"));
+    h+='<div class="row" style="padding:5px 0;align-items:center"><div class="grow"><b>'+esc(d.label)+'</b> <span class="tiny muted">'+per+'</span></div>'+
+      '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓ ":"")+c+'/'+tg+'</span>'+
       '<button class="cbtn" data-action="bump" data-duty="'+d.id+'" data-delta="1" style="width:34px;height:34px;background:var(--accent);color:#fff">+</button></div>';});
-  h+='<button class="btn ghost sm block" data-action="go" data-view="duties" style="margin-top:8px">Tous mes devoirs →</button></div>';
+  h+='<button class="btn ghost sm block" data-action="go" data-view="duties" style="margin-top:8px">Gérer mes devoirs →</button></div>';
 
   // l'équipe
   h+='<h2 class="sec">L\'équipe</h2>';
   var days=last7();
   membersSorted().forEach(function(m){
-    var mdd=dailyDuties(m.name), mwk=weeklyDuties(m.name).concat(monthlyDuties(m.name));
-    var pills=mdd.map(function(d){var ok=countOn(m.name,d.id,tdy)>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+(ok?"✓":"·")+" "+esc(shortLabel(d.label))+'</span>';}).join("");
-    var wk=mwk.map(function(d){var s=dutyCount(m.name,d),ok=s>=(d.target||1);return '<span class="dpill'+(ok?" on":"")+'">'+esc(shortLabel(d.label))+" "+s+"/"+(d.target||1)+'</span>';}).join("");
-    if(!mdd.length&&!mwk.length){pills='<span class="tiny muted">aucun devoir</span>';}
-    var strip=days.map(function(day){return '<div class="sq" title="'+day+'" style="background:'+heat(dayFrac(m.name,day))+'"></div>';}).join("");
-    h+='<div class="card"><div class="row"><div class="avatar" style="background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow"><div class="ttl">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div></div><div class="dlist">'+pills+wk+'</div><div class="strip">'+strip+'</div></div>';
+    var duties=dailyDuties(m.name).concat(weeklyDuties(m.name)).concat(monthlyDuties(m.name));
+    var rows="";
+    if(!duties.length){ rows='<div class="tiny muted" style="margin-top:6px">aucun devoir</div>'; }
+    else duties.forEach(function(d){
+      if(d.cadence==="per_day"){
+        var strip=days.map(function(day){var f=Math.min(1,countOn(m.name,d.id,day)/(d.target||1));return '<div class="sq" title="'+esc(shortLabel(d.label))+' · '+day+'" style="background:'+heat(f)+'"></div>';}).join("");
+        var tc=countOn(m.name,d.id,tdy),tg=d.target||1;
+        rows+='<div style="margin-top:7px"><div class="tiny" style="display:flex;justify-content:space-between"><b>'+esc(shortLabel(d.label))+'</b><span class="muted">'+(tc>=tg?"✓ ":"")+tc+'/'+tg+' auj.</span></div><div class="strip" style="margin-top:3px">'+strip+'</div></div>';
+      } else {
+        var s=dutyCount(m.name,d),tg2=d.target||1,frac=Math.min(1,s/tg2),okw=(s>=tg2);
+        rows+='<div style="margin-top:7px"><div class="tiny" style="display:flex;justify-content:space-between"><b>'+esc(shortLabel(d.label))+'</b><span class="muted">'+(okw?"✓ ":"")+s+'/'+tg2+' '+(d.cadence==="per_month"?"ce mois":"cette sem.")+'</span></div><div class="pbar" style="height:9px;margin-top:3px"><i style="width:'+(frac*100)+'%"></i></div></div>';
+      }
+    });
+    h+='<div class="card"><div class="row"><div class="avatar" style="background:'+avColor(m.name)+'">'+esc(initials(m.name))+'</div><div class="grow"><div class="ttl">'+esc(m.name)+(m.name===state.me?' <span class="tiny accent">(toi)</span>':'')+'</div></div></div>'+rows+'</div>';
   });
   return h;
 }
@@ -995,7 +1009,7 @@ function videoCard(v){
     '</div>'+
     ((state.dlPickFor===v.id)?dlPicker(v):"")+
     ((state.bannerPickFor===v.id)?bannerPicker(v):"")+((state.msgPickFor===v.id)?msgPicker(v):"")+
-    (v.kind==="appel"?'<div><div class="tiny muted" style="margin-top:8px">Reposté sur :</div><div class="platrow">'+plats+'</div>'+myLinksBlock(v,rp)+'</div>':"")+
+    (v.kind==="appel"?'<div><div class="tiny muted" style="margin-top:8px">Reposté sur :</div><div class="platrow">'+plats+'</div>'+myLinksBlock(v,rp)+((state.repostAskFor&&state.repostAskFor.v===v.id)?repostAskCard():"")+'</div>':"")+
     '<div class="row" style="gap:7px;margin-top:6px;align-items:center;flex-wrap:wrap">'+(na?'<button class="btn'+(state.argShowFor===v.id?"":" line")+' sm" data-action="toggle-args" data-id="'+v.id+'">💬 Argumentaires ('+na+')</button>':"")+'<button class="btn line sm" data-action="open-video" data-id="'+v.id+'">Détails</button>'+(v.channel_key?"":'<button class="copybtn" data-action="del-video" data-id="'+v.id+'" title="Supprimer cette vidéo">🗑</button>')+'</div>'+
     ((state.argShowFor===v.id&&na)?'<div class="vidargs">'+aa.map(function(a){return argMini(a,v.id);}).join("")+'</div>':"")+
   '</div>';
@@ -1572,6 +1586,8 @@ async function handle(a,el){
   if(a==="open-video"){ state.videoId=parseInt(el.getAttribute("data-id"),10); state.view="videoDetail"; render(); return; }
   if(a==="del-video"){ if(window.confirm&&!window.confirm("Supprimer définitivement cette vidéo ?"))return; delVideo(parseInt(el.getAttribute("data-id"),10)); return; }
   if(a==="repost"){ toggleRepost(parseInt(el.getAttribute("data-video"),10),el.getAttribute("data-plat")); return; }
+  if(a==="repost-duty-yes"){ var rdy=state.repostAskFor; state.repostAskFor=null; if(rdy){ bumpDuty(rdy.d,1); } else { render(); } return; }
+  if(a==="repost-duty-no"){ state.repostAskFor=null; render(); return; }
 
   if(a==="add-arg"){ addArgument(val("a-topic"),val("a-title"),val("a-body"),val("a-ref"),null); return; }
   if(a==="add-arg-video"){ addArgument(val("va-topic"),val("va-title"),val("va-body"),val("va-ref"),parseInt(el.getAttribute("data-video"),10)); return; }
