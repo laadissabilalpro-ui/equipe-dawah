@@ -492,6 +492,8 @@ async function ensureGroup(code){
     await c.from("team_recitations").upsert(DEFAULT_RECITS.map(function(x,i){return {code:code,label:recitLabel(x),surah:x.s,ayah:x.a||null,ayah_end:x.a2||null,sort:i};}),{onConflict:"code,label",ignoreDuplicates:true});
 }
 
+// v40 : PostgREST plafonne a 1000 lignes par requete -> pagination transparente
+async function selectAll(mk){ var PAGE=1000, out=[], from=0; while(true){ var r=await mk(from,from+PAGE-1); if(r.error) return {data:(out.length?out:null),error:r.error}; var d=r.data||[]; out=out.concat(d); if(d.length<PAGE) break; from+=PAGE; if(from>50000) break; } return {data:out,error:null}; }
 async function refreshAll(){
   var c=client(), code=state.code;
   var res=await Promise.all([
@@ -499,8 +501,8 @@ async function refreshAll(){
     c.from("team_duties").select("*").eq("code",code).order("sort",{ascending:true}),
     c.from("team_duty_log").select("*").eq("code",code).gte("day",daysAgoStr(14)),
     c.from("team_tasks").select("*").eq("code",code).order("created_at",{ascending:false}),
-    c.from("team_videos").select("*").eq("code",code).order("created_at",{ascending:false}),
-    c.from("team_video_reposts").select("*").eq("code",code),
+    selectAll(function(a,b){ return c.from("team_videos").select("*").eq("code",code).order("created_at",{ascending:false}).order("id",{ascending:false}).range(a,b); }),
+    selectAll(function(a,b){ return c.from("team_video_reposts").select("*").eq("code",code).order("id",{ascending:true}).range(a,b); }),
     c.from("team_arguments").select("*").eq("code",code).order("created_at",{ascending:false}),
     c.from("team_recitations").select("*").eq("code",code).order("sort",{ascending:true}),
     c.from("team_ideas").select("*").eq("code",code).order("created_at",{ascending:false}),
