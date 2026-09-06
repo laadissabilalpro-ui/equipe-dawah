@@ -861,8 +861,23 @@ async function syncChannel(ch, silent){
     await refreshAll();
   }catch(e){ if(!silent)showToast("Erreur de synchro : "+(e&&e.message||e)); }
 }
-async function maybeAutoSync(){ try{ if(!lget("team:ytkey",""))return; var last=parseInt(lget("team:lastsync","0"),10)||0; if(Date.now()-last < 1800000) return; var chs=(state.channels||[]); for(var i=0;i<chs.length;i++){ if(chs[i]&&chs[i].uploads_playlist_id) await syncChannel(chs[i], true); } }catch(e){} }
-async function forceSyncAll(){ if(!lget("team:ytkey","")){ showToast("Ajoute ta clé YouTube dans Réglages."); return; } showToast("🔄 Synchronisation…"); var chs=(state.channels||[]); for(var i=0;i<chs.length;i++){ if(chs[i]&&chs[i].uploads_playlist_id){ try{ await syncChannel(chs[i], true); }catch(e){} } } showToast("✅ Catalogue synchronisé."); }
+// v41 : la synchro tourne sur le serveur (edge fn sync-youtube v2 : Shorts fiables = règle 3 min + vérif URL youtube.com/shorts/, dédup paginée). Aucune clé côté client.
+var _syncBusy=false;
+async function serverSync(silent){
+  if(_syncBusy) return null; _syncBusy=true; lset("team:lastsync",String(Date.now()));
+  try{
+    var r=await fetch(SB_URL+"/functions/v1/sync-youtube",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+    var j=await r.json();
+    if(!j||!j.ok){ if(!silent)showToast("Synchro impossible : "+((j&&j.error)||("HTTP "+r.status))); return j; }
+    var n=j.total_added||0, rc=j.rechecked||0;
+    if(n||rc) await refreshAll();
+    if(!silent) showToast(n?("✅ "+n+" nouvelle(s) vidéo(s) ajoutée(s)."):"✅ Catalogue déjà à jour."); else if(n) showToast("✅ "+n+" nouvelle(s) vidéo(s) YouTube.");
+    return j;
+  }catch(e){ if(!silent)showToast("Erreur de synchro : "+(e&&e.message||e)); return null; }
+  finally{ _syncBusy=false; }
+}
+async function maybeAutoSync(){ try{ var last=parseInt(lget("team:lastsync","0"),10)||0; if(Date.now()-last < 1800000) return; await serverSync(true); }catch(e){} }
+async function forceSyncAll(){ showToast("🔄 Synchronisation…"); await serverSync(false); }
 function recitsLeft(){return state.recits.filter(function(r){return !r.done;}).length;}
 function ideasNew(){return state.ideas.filter(function(i){return i.status==="nouvelle";}).length;}
 function shortLabel(s){return String(s).replace(/\s*\(.*?\)\s*/g,"").replace("Poster 1–2 vidéos","Vidéos").replace("Partager l'appel","Appel").replace("Point hebdo équipe","Point hebdo").replace("Réciter","Récit.");}
@@ -1028,7 +1043,7 @@ function viewVideos(){
   function vdate(v){ return v.published_at||v.created_at||""; }
   list.sort(function(a,b){ var da=vdate(a),db=vdate(b); return da<db?(-1*dir):(da>db?dir:0); });
   var shorts=list.filter(isShort), vids=list.filter(function(v){return !isShort(v);});
-  h+='<div class="row" style="margin:0 2px 6px;align-items:center;gap:6px"><div class="tiny muted grow">'+list.length+' vidéo(s)</div>'+(lget("team:ytkey","")?'<button class="btn ghost sm" data-action="sync-now" title="Synchroniser les nouvelles vidéos">🔄</button>':"")+'<button class="btn ghost sm" data-action="vid-sort">'+(state.vidSort==="old"?"↑ Plus anciennes":"↓ Plus récentes")+'</button></div>';
+  h+='<div class="row" style="margin:0 2px 6px;align-items:center;gap:6px"><div class="tiny muted grow">'+list.length+' vidéo(s)</div>'+'<button class="btn ghost sm" data-action="sync-now" title="Synchroniser les nouvelles vidéos YouTube">🔄</button>'+'<button class="btn ghost sm" data-action="vid-sort">'+(state.vidSort==="old"?"↑ Plus anciennes":"↓ Plus récentes")+'</button></div>';
   var PAGE=state.vidPage||30;
   if(vids.length){ h+='<h2 class="sec">🎬 Vidéos ('+vids.length+')</h2>'; vids.slice(0,PAGE).forEach(function(v){ h+=videoCard(v); }); if(vids.length>PAGE) h+='<button class="btn ghost sm block" data-action="vid-more" style="margin:4px 0 10px">Voir plus ('+(vids.length-PAGE)+' restantes)</button>'; }
   if(shorts.length){ h+='<h2 class="sec">⚡ Shorts ('+shorts.length+')</h2>'; shorts.slice(0,PAGE).forEach(function(v){ h+=videoCard(v); }); if(shorts.length>PAGE) h+='<button class="btn ghost sm block" data-action="vid-more" style="margin:4px 0 10px">Voir plus ('+(shorts.length-PAGE)+' restants)</button>'; }
@@ -1412,7 +1427,7 @@ function viewSettings(){
   if(isReleaseOwner()){
     var ych0=(state.channels||[])[0];
     h+='<h2 class="sec">🎥 Catalogue YouTube</h2>';
-    h+='<div class="card">'+(ych0?'<div class="tiny muted" style="margin-bottom:4px">Chaîne : <b>'+esc(ych0.label)+'</b></div>':'<div class="tiny muted" style="margin-bottom:4px">Aucune chaîne enregistrée.</div>')+'<label class="lab">Clé API YouTube (pour importer toutes les vidéos)</label><input id="yt-key" class="field" placeholder="Colle ta clé API ici" value="'+esc(lget("team:ytkey",""))+'"><div class="row" style="gap:6px"><button class="btn ghost sm" data-action="save-ytkey">Enregistrer la clé</button><button class="btn sm grow" data-action="sync-channel">🔄 Synchroniser les vidéos</button></div><div class="tiny muted" style="margin-top:6px">Importe automatiquement toutes les vidéos de la chaîne. Sans clé, ajoute les vidéos à la main depuis l\'onglet Vidéos.</div></div>';
+    h+='<div class="card">'+(ych0?'<div class="tiny muted" style="margin-bottom:4px">Chaîne : <b>'+esc(ych0.label)+'</b></div>':'<div class="tiny muted" style="margin-bottom:4px">Aucune chaîne enregistrée.</div>')+'<label class="lab">Clé API YouTube (optionnelle — la synchro tourne désormais sur le serveur, chaque heure)</label><input id="yt-key" class="field" placeholder="Colle ta clé API ici" value="'+esc(lget("team:ytkey",""))+'"><div class="row" style="gap:6px"><button class="btn ghost sm" data-action="save-ytkey">Enregistrer la clé</button><button class="btn sm grow" data-action="sync-channel">🔄 Synchroniser les vidéos</button></div><div class="tiny muted" style="margin-top:6px">Importe automatiquement toutes les vidéos de la chaîne. Sans clé, ajoute les vidéos à la main depuis l\'onglet Vidéos.</div></div>';
     h+='<h2 class="sec">✏️ Modèles de message</h2><div class="tiny muted" style="margin:0 2px 6px">Placeholders : <code>{titre}</code> <code>{plateformes}</code> <code>{lien}</code> <code>{lien_direct}</code> <code>{lien_youtube}</code></div>';
     var TPLLBL={group:"Message groupe (info aux frères)",share_bilal:"Partager aux abonnés — toi (Snap/Spotlight)",share_other:"Partager aux abonnés — autres frères"};
     ["group","share_bilal","share_other"].forEach(function(tk){ h+='<div class="card"><div class="ttl" style="font-size:14px;margin-bottom:4px">'+esc(TPLLBL[tk])+'</div><textarea id="tpl-'+tk+'" class="field" rows="'+(tk==="group"?4:9)+'" style="font-size:13px">'+esc(tplGet(tk))+'</textarea><div class="row" style="gap:7px"><button class="btn sm" data-action="save-tpl" data-k="'+tk+'">💾 Enregistrer</button><button class="btn ghost sm" data-action="reset-tpl" data-k="'+tk+'">↩︎ Défaut</button></div></div>'; });
@@ -1667,7 +1682,7 @@ async function handle(a,el){
   if(a==="banner-dl"){ var bv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-id"),10);}); var r=parseFloat(el.getAttribute("data-r"))||0; var sfx=el.getAttribute("data-s")||"img"; if(bv&&bv.banner_url){ bannerDL(bv.banner_url, r, "banniere_"+bv.id+"_"+sfx+".jpg"); } return; }
   if(a==="dl-copy"){ var dcv=(state.videos||[]).find(function(x){return x.id===parseInt(el.getAttribute("data-video"),10);}); if(!dcv)return; var yurl=dcv.url||(dcv.yt_id?("https://www.youtube.com/watch?v="+dcv.yt_id):""); if(el.getAttribute("data-armed")==="1"){ var svc2=curDlService(); if(svc2&&window.open)window.open(dlURL(svc2,dcv),"_blank"); el.setAttribute("data-armed","0"); el.textContent="📋 Copier le lien"; } else { copyText(yurl); showToast("Lien copié ✓ — ouvre le site puis colle-le (coller / Ctrl+V)"); el.setAttribute("data-armed","1"); el.textContent="⬇ Ouvrir le site & coller"; } return; }
   if(a==="save-ytkey"){ lset("team:ytkey",val("yt-key")||""); showToast("Clé enregistrée ✓"); render(); return; }
-  if(a==="sync-channel"){ syncChannel((state.channels||[])[0]); return; }
+  if(a==="sync-channel"){ forceSyncAll(); return; }
 
   if(a==="add-recit"){ var sn=parseInt(val("r-surah"),10)||null; if(!sn)return; var a1=parseInt(val("r-ayah"),10)||null, a2=parseInt(val("r-ayah2"),10)||null; var by=val("r-by"); if(by==="__autre__"){ by=((window.prompt&&window.prompt("Prénom du récitateur (proche, invité…)"))||"").trim(); if(!by)return; } var exists=state.recits.some(function(r){return r.surah===sn&&(r.ayah||null)===a1&&(r.ayah_end||null)===a2;}); if(exists&&window.confirm&&!window.confirm("Ce passage est déjà marqué récité. Continuer quand même ?"))return; addRecit(sn,a1,a2,by); return; }
   if(a==="surah-toggle"){ var so=parseInt(el.getAttribute("data-s"),10); state.openSurah=state.openSurah===so?null:so; render(); return; }
