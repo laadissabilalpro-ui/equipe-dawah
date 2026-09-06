@@ -1,5 +1,5 @@
-/* L'Appel — Équipe · service worker (PWA) — v41 (File de publication « À poster aujourd'hui » Shorts→Vidéos→chrono + fluidité : pagination liste vidéos + recherche debounce + fix plafond 1000 vidéos ; v41 : Shorts fiables règle 3 min, dédoublonnage, synchro serveur sans clé) */
-const CACHE = "lappel-v41";
+/* L'Appel — Équipe · service worker (PWA) — v42 (File de publication « À poster aujourd'hui » Shorts→Vidéos→chrono + fluidité : pagination liste vidéos + recherche debounce + fix plafond 1000 vidéos ; v41 : Shorts fiables règle 3 min, dédoublonnage, synchro serveur sans clé ; v42 : file → Télécharger 2 temps + panneau « posté » lien direct & message groupe) */
+const CACHE = "lappel-v42";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const CDN  = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
