@@ -374,7 +374,7 @@ function queueItemCard(v,q,big){ var short=isShort(v); var th=v.thumbnail_url||(
     '<div class="row" style="gap:10px;align-items:flex-start">'+(th?'<img src="'+esc(th)+'" alt="" loading="lazy" style="width:'+(big?96:64)+'px;border-radius:8px;flex:none">':'')+
     '<div class="grow"><span class="pill" style="font-size:10px">'+(short?"⚡ Short":"🎬 Vidéo")+'</span> <span class="tiny muted">'+esc(pubLabel(v))+'</span><div class="ttl small" style="margin-top:3px">'+esc(v.title)+'</div></div></div>'+
     '<div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">'+(lk?'<a class="btn ghost sm" href="'+esc(lk)+'" target="_blank" rel="noopener">▶ YouTube</a>'+(curDlService()?'<button class="btn sm" data-action="dl-copy" data-video="'+v.id+'" data-label="⬇ Télécharger">⬇ Télécharger</button>':'')+'<button class="btn ghost sm" data-action="dl-other" data-video="'+v.id+'">🚨 Autre</button>':'')+
-    '<button class="btn sm grow" data-action="queue-posted" data-video="'+v.id+'">✅ Posté sur '+esc(myPlat()||"ma plateforme")+'</button></div>'+
+    '</div><button class="btn sm block" data-action="queue-posted" data-video="'+v.id+'" style="margin-top:6px;white-space:nowrap">✅ Posté sur '+esc(myPlat()||"ma plateforme")+'</button>'+
     ((state.dlPickFor===v.id)?dlPicker(v):"")+
     (big?'':'<div class="row" style="margin-top:4px"><div class="grow"></div><button class="copybtn" data-action="queue-cursor" data-video="'+v.id+'" title="Tout ce qui précède (inclus) = déjà posté">📍 À jour jusqu\'ici</button></div>')+
     '</div>'; }
